@@ -1,6 +1,6 @@
 # LingJian AI Video Editor
 
-## [Download Windows Installer](https://github.com/AK-202210061/lingjian-ai-video-editor/releases/download/v4.13.0/LingJian-AI-Video-Editor-4.13.0-Windows-Setup.exe)
+## [Download Windows Installer](https://github.com/MikeKang202210061/lingjian-ai-video-editor/releases/download/v4.13.0/LingJian-AI-Video-Editor-4.13.0-Windows-Setup.exe)
 
 Download the current Windows installer directly, or see [DOWNLOAD.md](DOWNLOAD.md) for release details and checksum verification.
 
@@ -50,7 +50,7 @@ This repository contains the current **4.13** source release.
 ## Run from source
 
 ```powershell
-git clone https://github.com/AK-202210061/lingjian-ai-video-editor.git
+git clone https://github.com/MikeKang202210061/lingjian-ai-video-editor.git
 cd lingjian-ai-video-editor
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
