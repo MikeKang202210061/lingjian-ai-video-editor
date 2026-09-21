@@ -1,12 +1,6 @@
 # LingJian AI Video Editor
 
-## [Download Windows Installer](https://github.com/MikeKang202210061/lingjian-ai-video-editor/releases/download/v4.13.0/LingJian-AI-Video-Editor-4.13.0-Windows-Setup.exe)
-
-Download the current Windows installer directly, or see [DOWNLOAD.md](DOWNLOAD.md) for release details and checksum verification.
-
 LingJian is a Windows desktop nonlinear video editor that combines a traditional, editable timeline with optional AI-assisted footage analysis and narrative planning. Local media processing stays on the user's machine; cloud AI is only called after the user provides an API key and starts an analysis.
-
-This repository contains the current **4.13** source release.
 
 ## Highlights
 
@@ -58,7 +52,6 @@ pip install -r requirements.txt
 python app.py
 ```
 
-The editor works without a cloud key. To enable cloud-assisted content analysis, follow [docs/API_SETUP.md](docs/API_SETUP.md).
 
 ## Optional person-segmentation model
 
