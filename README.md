@@ -18,33 +18,33 @@ LingJian is a Windows desktop nonlinear video editor that combines a traditional
 
 ```mermaid
 flowchart TD
-    A["启动灵剪<br/>Launch LingJian"] --> B{"新建或打开工程"}
-    B --> C["导入视频与音频素材"]
-    C --> D["FFprobe / FFmpeg<br/>读取元数据、生成缩略图与代理"]
-    D --> E["素材库与源监视器<br/>设置入点 / 出点"]
-    E --> F{"选择剪辑方式"}
+    A["Launch LingJian"] --> B{"Create or open a project"}
+    B --> C["Import video and audio media"]
+    C --> D["FFprobe / FFmpeg<br/>Read metadata and generate thumbnails and proxies"]
+    D --> E["Media library and source monitor<br/>Set In / Out points"]
+    E --> F{"Choose an editing workflow"}
 
-    F -->|手工剪辑| G["拖放、插入或覆盖片段"]
-    F -->|AI 辅助| H["输入故事目标、风格与成片时长"]
-    H --> I{"分析模式"}
-    I -->|离线| J["本地场景、画质与节奏分析"]
-    I -->|可选云端| K["生成联系表与压缩音频<br/>调用兼容 AI API"]
-    J --> L["生成可审查的剪辑方案"]
+    F -->|Manual editing| G["Drag, insert, or overwrite clips"]
+    F -->|AI-assisted editing| H["Enter the story goal, style, and target duration"]
+    H --> I{"Choose an analysis mode"}
+    I -->|Offline| J["Analyze scenes, quality, and pacing locally"]
+    I -->|Optional cloud AI| K["Create contact sheets and compressed audio<br/>Call a compatible AI API"]
+    J --> L["Generate a reviewable edit plan"]
     K --> L
-    L --> M{"预览并确认方案"}
-    M -->|调整提示或方案| H
-    M -->|应用| N["写入可撤销的时间线编辑"]
-    G --> O["多轨时间线<br/>V1 视频 · T1 字幕 · A1 音频 · V2+ 叠加"]
+    L --> M{"Preview and approve the plan"}
+    M -->|Revise the prompt or plan| H
+    M -->|Apply| N["Create undoable timeline edits"]
+    G --> O["Multitrack timeline<br/>V1 Video · T1 Captions · A1 Audio · V2+ Overlays"]
     N --> O
 
-    O --> P["人工微调<br/>裁切、分割、排序、字幕、转场、音乐与音效"]
-    P --> Q["保存 .ljproject 工程"]
-    P --> R["导出前质量检查"]
-    R --> S{"检查通过？"}
-    S -->|否| O
-    S -->|是| T["FFmpeg 确定性渲染<br/>H.264 视频 + AAC 音频"]
-    T --> U["验证输出 MP4"]
-    U --> V["完成成片"]
+    O --> P["Fine-tune manually<br/>Trim, split, reorder, caption, transition, mix music, and add SFX"]
+    P --> Q["Save the .ljproject file"]
+    P --> R["Run the pre-export quality check"]
+    R --> S{"Did all checks pass?"}
+    S -->|No| O
+    S -->|Yes| T["Deterministic FFmpeg render<br/>H.264 video + AAC audio"]
+    T --> U["Validate the exported MP4"]
+    U --> V["Finished video"]
 
     classDef start fill:#1769c2,color:#fff,stroke:#0d47a1,stroke-width:2px;
     classDef ai fill:#e8f3ff,color:#123,stroke:#4b91d1;
