@@ -97,6 +97,30 @@ python app.py
 ```
 
 
+## Desktop workspace improvements
+
+![Compact desktop workspace, captured with Qt offscreen](docs/images/workspace-compact.png)
+
+The desktop editor now offers a compact, tabbed monitor workspace and an optional
+dual-monitor review mode. The tool selector exposes every inspector page by name;
+parameter panels scroll on small screens, and editing shortcuts respect text-input
+focus. The File menu includes Import (`Ctrl+I`), Open (`Ctrl+O`), and Save As
+(`Ctrl+Shift+S`). Project writes use a temporary file and replacement so a failed
+save does not truncate the previous project. Layout/styles and file persistence
+live in separate modules, reusing the existing editing and preview controllers.
+
+See [the research and iteration record](docs/IMPROVEMENT_REVIEW.md) for design
+sources, feature tradeoffs, verification, and the next priorities.
+
+With PySide6 installed, run the desktop interaction checks:
+
+```powershell
+python -m unittest tests.test_desktop_workspace -v
+```
+
+The tests select Qt's offscreen platform by default. Linux shell users can also
+set `QT_QPA_PLATFORM=offscreen` explicitly. They do not replace Windows manual QA.
+
 ## Scene-aware cloud analysis
 
 The desktop AI Director now scans a small 64×36 proxy locally at four samples per

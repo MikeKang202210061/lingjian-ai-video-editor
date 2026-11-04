@@ -2,6 +2,7 @@ from __future__ import annotations
 import json, os, re, subprocess, uuid, hashlib, sys
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
+from project_files import write_project
 
 VIDEO_EXT={'.mp4','.mov','.mkv','.avi','.webm','.m4v'}
 AUDIO_EXT={'.mp3','.wav','.m4a','.aac','.flac','.ogg'}
@@ -136,7 +137,7 @@ class Project:
             length=min(c.duration,max(.2,min(7,target-used)));mid=(c.start+c.end)/2
             out.append(Clip(c.path,max(c.start,mid-length/2),min(c.end,mid+length/2),c.name,'', 'bottom','fade',c.volume,c.has_audio));used+=out[-1].duration
         self.clips=out
-    def save(self,path): Path(path).write_text(json.dumps(self.to_dict(),ensure_ascii=False,indent=2),encoding='utf-8')
+    def save(self,path): write_project(path,self.to_dict())
     def to_dict(self): return {'version':5,'title':self.title,'bgm':self.bgm,'bgm_volume':self.bgm_volume,'bgm_id':self.bgm_id,'bgm_ducking':self.bgm_ducking,'bgm_fade_in':self.bgm_fade_in,'bgm_fade_out':self.bgm_fade_out,'ratio':self.ratio,'prompt':self.prompt,'edit_plan':self.edit_plan,'edit_log':self.edit_log[-100:],'clips':[asdict(c) for c in self.clips],'sfx':[asdict(x) for x in self.sfx],'overlays':[asdict(x) for x in self.overlays]}
     @classmethod
     def from_dict(cls,d):
@@ -282,3 +283,4 @@ def build_render_command(ffmpeg:str,project:Project,out:str,width=720,height=128
         filters.append(f'{amap}[{sfx_label}]amix=inputs=2:duration=first:dropout_transition=0[{mix_label}]');amap=f'[{mix_label}]'
     crf='18' if quality=='high' else '23'
     return args+['-filter_complex',';'.join(filters),'-map',vmap,'-map',amap,'-map_metadata','-1','-write_tmcd','0','-c:v','libx264','-preset','medium','-crf',crf,'-profile:v','main','-level:v','4.1','-pix_fmt','yuv420p','-r','30','-fps_mode','cfr','-tag:v','avc1','-video_track_timescale','30000','-c:a','aac','-b:a','192k','-ar','48000','-ac','2','-movflags','+faststart','-brand','mp42',out]
+

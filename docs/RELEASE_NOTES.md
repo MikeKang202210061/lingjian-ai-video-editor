@@ -36,3 +36,16 @@
   may increase API cost. No live-provider quality or Windows GUI claim is made by
   the automated checks.
 
+# Desktop workspace and project saves
+
+- Compact monitor tabs plus an optional dual-monitor review workspace.
+- A named inspector selector, scrollable parameter pages and a two-row timeline
+  toolbar improve access on 1366×768 and smaller desktop windows.
+- Text-entry focus keeps editing keys inside captions/prompts; timeline shortcuts
+  remain available when the timeline has focus.
+- File-menu Import, Open and Save As commands; failed saves retain the active path.
+- Atomic project writes shared by manual save and autosave; styles, workspace
+  behavior and persistence are separated from the application controller.
+- Six offscreen desktop interaction tests and three persistence tests added.
+- Research, feature tradeoffs and remaining priorities: `docs/IMPROVEMENT_REVIEW.md`.
+
