@@ -12,6 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 TESTS = Path(__file__).resolve().parent
 PORTABLE_TESTS = [
+    "test_resolve_backend.py",
     "test_render_jobs.py",
     "test_project_session.py",
     "test_project_files.py",

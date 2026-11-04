@@ -76,12 +76,15 @@ class EditorSession(QObject):
 
     def running_tasks(self):
         names = ('proxy_thread', 'analyze_thread', 'scene_thread', 'cloud_thread',
-                 'render_thread', 'effect_thread', 'person_thread')
+                 'render_thread', 'effect_thread', 'person_thread', 'resolve_thread')
         tasks = [name for name in names if (task := getattr(self.window, name, None))
                  is not None and task.isRunning()]
         importer = getattr(self.window, 'import_controller', None)
         if importer is not None and importer.busy:
             tasks.append('media_import')
+        resolve = getattr(self.window, 'resolve_controller', None)
+        if resolve is not None and resolve.busy:
+            tasks.append('resolve_backend')
         return tasks
 
     def can_replace_document(self):

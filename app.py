@@ -22,6 +22,7 @@ from desktop_session import EditorSession
 from desktop_render import RenderThread
 from desktop_export import ExportController
 from desktop_import import ImportController
+from desktop_resolve import ResolveController
 
 ROOT=Path(getattr(sys,'_MEIPASS',Path(__file__).parent));FFMPEG=str(ROOT/'ffmpeg.exe') if (ROOT/'ffmpeg.exe').exists() else (shutil.which('ffmpeg') or 'ffmpeg')
 
@@ -116,7 +117,7 @@ class Main(QMainWindow):
     def __init__(self):
         super().__init__();self.project=Project();self.metas={};self.media_items={};self.thumbs={};self.proxies={};self.proxy_queue=[];self.proxy_thread=None;self.analyze_thread=None;self.scene_thread=None;self.cloud_thread=None;self.render_thread=None;self.effect_thread=None;self.person_thread=None;self.sfx_player=None;self.sfx_audio=None;self.current_clip=-1;self.history=[];self.redo_history=[];self._trim_snapshot=False;self.project_path='';self.pending_position=None;self.pending_autoplay=False;self.source_path='';self.source_in=0.;self.source_out=0.;self.settings=QSettings('LingJianAI','Editor');self.editing_profile=self.load_editing_profile()
         self.cache=Path(QStandardPaths.writableLocation(QStandardPaths.CacheLocation) or tempfile.gettempdir())/'LingJianAI';self.cache.mkdir(parents=True,exist_ok=True);self.autosave=self.cache/'autosave.ljproject'
-        self.setWindowTitle('灵剪 AI 视频编辑器 4.13 · 全片创意导演');self.resize(1760,1000);self.setMinimumSize(1280,800);self.build();self.load_api_settings();self.bind_shortcuts();install_workspace(self);self.timeline.set_project(self.project);self.session=EditorSession(self,ROOT);self.export_controller=ExportController(self,FFMPEG);self.import_controller=ImportController(self,FFMPEG);self.statusBar().showMessage('就绪 · AI 会分析全片事件并自动安排字幕、动效、音效和音乐');self.auto_timer=QTimer(self);self.auto_timer.timeout.connect(self.auto_save);self.auto_timer.start(30000)
+        self.setWindowTitle('灵剪 AI 视频编辑器 4.13 · 全片创意导演');self.resize(1760,1000);self.setMinimumSize(1280,800);self.build();self.load_api_settings();self.bind_shortcuts();install_workspace(self);self.timeline.set_project(self.project);self.session=EditorSession(self,ROOT);self.export_controller=ExportController(self,FFMPEG);self.import_controller=ImportController(self,FFMPEG);self.resolve_thread=None;self.resolve_controller=ResolveController(self,FFMPEG);self.statusBar().showMessage('就绪 · AI 会分析全片事件并自动安排字幕、动效、音效和音乐');self.auto_timer=QTimer(self);self.auto_timer.timeout.connect(self.auto_save);self.auto_timer.start(30000)
     def btn(self,text,fn,primary=False):
         b=QPushButton(text);b.clicked.connect(fn)
         if primary:b.setObjectName('primary')

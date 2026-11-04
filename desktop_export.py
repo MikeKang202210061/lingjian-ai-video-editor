@@ -30,6 +30,10 @@ class ExportController(QObject):
 
     def start(self):
         window = self.window
+        resolve = getattr(window, 'resolve_controller', None)
+        if resolve is not None and resolve.rendering:
+            window.statusBar().showMessage('达芬奇导出仍在运行，请等待完成或取消。')
+            return False
         if self.busy:
             window.inspector.setCurrentIndex(6)
             window.statusBar().showMessage('已有导出任务，请等待完成或取消当前导出。')

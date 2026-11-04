@@ -107,3 +107,22 @@
 - This remains a draft source update; Windows hardware and installer acceptance,
   general cancellation and the remaining task lifecycles are not claimed complete.
 
+# Experimental DaVinci Resolve backend
+
+- Optional, collapsed controls in Audio & Export for local SDK detection, a
+  restricted basic-edit render, cooperative cancellation and an editor-owned
+  output preview window. The FFmpeg backend remains independent.
+- Existing reviewed AI timelines supply media paths, source ranges and sequence;
+  a fixed JSON contract is expanded by an isolated Python SDK process. No
+  model-generated Python or shell commands are executed.
+- New owned projects only; an existing open Resolve project blocks execution.
+  Output is rendered beside the destination, checked and then published.
+  Unknown native task state preserves its working files and requires inspection.
+- Basic mode does not transfer captions, effects, overlays or mixing; an explicit
+  confirmation lists the omitted capabilities before sending.
+- Twenty protocol/client/simulated-SDK tests and fourteen offscreen UI tests added;
+  portable, 73 desktop and eight existing real-media checks pass.
+- No real Resolve installation, Studio license, SDK render, GPU or advanced Fusion
+  template was tested. This is a source prototype, not a validated Resolve release.
+- Setup and boundaries: `docs/RESOLVE_BACKEND.md`.
+
