@@ -78,3 +78,19 @@
   tests added. General import/AI cancellation and Windows device/installer
   validation remain pending.
 
+# Serialized imports and proxy lifecycle
+
+- Additional imports queue behind the active read; equivalent paths and already
+  known/pending videos are skipped without replacing a running worker.
+- The library displays visible/total videos, pending reads, proxy jobs and issue
+  counts. New items and proxy-status changes respect the active search.
+- Read failures are collected in copyable, bounded issue details instead of one
+  modal dialog per file. Failed reads can be retried after their batch finishes.
+- Retain read/proxy workers until `finished`; queued work also blocks closing or
+  switching projects. Catch worker startup and media/cache errors.
+- Proxy rendering shares validated temporary publication. A failed proxy keeps
+  original media and the source monitor path available.
+- Fourteen import interaction tests and six real worker checks added, including
+  locally generated FFmpeg media. General read/AI cancellation, old-cache
+  validation and Windows device/installer checks remain pending.
+

@@ -121,6 +121,29 @@ python -m unittest tests.test_desktop_workspace -v
 The tests select Qt's offscreen platform by default. Linux shell users can also
 set `QT_QPA_PLATFORM=offscreen` explicitly. They do not replace Windows manual QA.
 
+## Import queue and media-library feedback
+
+Selecting more media while a read is running queues the next batch instead of
+replacing its worker. Equivalent video paths and videos already loaded, queued or
+being read are skipped, with a status message. Audio keeps its existing role as
+background music and is not counted as a video-library item.
+
+The library shows visible/total videos, remaining reads, proxy jobs and issue
+counts. New items and proxy-status changes obey the current search. File errors
+do not open one blocking dialog per file: **查看导入问题** shows copyable details,
+retaining the latest 50 issues for the current project. A failed video read can
+be retried by importing that file again after its batch finishes.
+
+Read and proxy workers are retained until Qt reports completion. A pending queue
+also prevents closing or changing projects. Proxy creation reuses temporary-file
+publication; failures preserve the source and do not switch the monitor to a
+failed proxy. Existing cached proxies still use the previous cache-discovery
+rules. This does not add general import cancellation or media-probe timeouts.
+
+```powershell
+python -m unittest tests.test_desktop_import tests.test_desktop_media_workers -v
+```
+
 ## Unsaved changes and recovery
 
 The title bar and status bar distinguish new, modified and saved projects. Opening

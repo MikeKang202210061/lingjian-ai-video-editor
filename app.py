@@ -6,7 +6,7 @@ from PySide6.QtGui import QAction,QIcon,QPixmap,QKeySequence,QPalette,QColor,QPa
 from PySide6.QtWidgets import *
 from PySide6.QtMultimedia import QMediaPlayer,QAudioOutput
 from PySide6.QtMultimediaWidgets import QVideoWidget
-from core import Project,Clip,OverlayClip,SFXCue,probe_media,thumbnail,build_render_command,build_proxy_command,proxy_path,detect_scenes,scan_video_quality,quality_from_scan,VIDEO_EXT,AUDIO_EXT
+from core import Project,Clip,OverlayClip,SFXCue,probe_media,build_render_command,proxy_path,detect_scenes,scan_video_quality,quality_from_scan
 from timeline_widget import TimelineCanvas,MediaList
 from ai_api import APIConfig,analyze_video,plan_sequence,protect_secret,unprotect_secret
 from editing_profile import learn_profile,profile_prompt,profile_summary
@@ -21,29 +21,10 @@ from desktop_theme import STYLE
 from desktop_session import EditorSession
 from desktop_render import RenderThread
 from desktop_export import ExportController
+from desktop_import import ImportController
 
 ROOT=Path(getattr(sys,'_MEIPASS',Path(__file__).parent));FFMPEG=str(ROOT/'ffmpeg.exe') if (ROOT/'ffmpeg.exe').exists() else (shutil.which('ffmpeg') or 'ffmpeg')
 
-
-class MediaAnalyzeThread(QThread):
-    item=Signal(object);done=Signal();failed=Signal(str)
-    def __init__(self,paths,cache):super().__init__();self.paths=paths;self.cache=Path(cache)
-    def run(self):
-        self.cache.mkdir(parents=True,exist_ok=True)
-        for path in self.paths:
-            try:
-                meta=probe_media(FFMPEG,path);thumb=str(self.cache/(Path(path).stem+'-'+str(abs(hash(path)))+'.jpg'))
-                if not Path(thumb).exists():thumbnail(FFMPEG,path,thumb,min(2,meta['duration']*.25))
-                meta['thumbnail']=thumb;self.item.emit(meta)
-            except Exception as e:self.failed.emit(str(e))
-        self.done.emit()
-
-class ProxyThread(QThread):
-    done=Signal(str,str,bool,str)
-    def __init__(self,source,out):super().__init__();self.source=source;self.out=out
-    def run(self):
-        Path(self.out).parent.mkdir(parents=True,exist_ok=True);p=subprocess.run(build_proxy_command(FFMPEG,self.source,self.out),capture_output=True,text=True,encoding='utf-8',errors='replace',creationflags=0x08000000 if os.name=='nt' else 0)
-        self.done.emit(self.source,self.out,p.returncode==0,(p.stderr or '')[-700:])
 
 class SceneThread(QThread):
     progress=Signal(int,str);done=Signal(object);failed=Signal(str)
@@ -135,7 +116,7 @@ class Main(QMainWindow):
     def __init__(self):
         super().__init__();self.project=Project();self.metas={};self.media_items={};self.thumbs={};self.proxies={};self.proxy_queue=[];self.proxy_thread=None;self.analyze_thread=None;self.scene_thread=None;self.cloud_thread=None;self.render_thread=None;self.effect_thread=None;self.person_thread=None;self.sfx_player=None;self.sfx_audio=None;self.current_clip=-1;self.history=[];self.redo_history=[];self._trim_snapshot=False;self.project_path='';self.pending_position=None;self.pending_autoplay=False;self.source_path='';self.source_in=0.;self.source_out=0.;self.settings=QSettings('LingJianAI','Editor');self.editing_profile=self.load_editing_profile()
         self.cache=Path(QStandardPaths.writableLocation(QStandardPaths.CacheLocation) or tempfile.gettempdir())/'LingJianAI';self.cache.mkdir(parents=True,exist_ok=True);self.autosave=self.cache/'autosave.ljproject'
-        self.setWindowTitle('灵剪 AI 视频编辑器 4.13 · 全片创意导演');self.resize(1760,1000);self.setMinimumSize(1280,800);self.build();self.load_api_settings();self.bind_shortcuts();install_workspace(self);self.timeline.set_project(self.project);self.session=EditorSession(self,ROOT);self.export_controller=ExportController(self,FFMPEG);self.statusBar().showMessage('就绪 · AI 会分析全片事件并自动安排字幕、动效、音效和音乐');self.auto_timer=QTimer(self);self.auto_timer.timeout.connect(self.auto_save);self.auto_timer.start(30000)
+        self.setWindowTitle('灵剪 AI 视频编辑器 4.13 · 全片创意导演');self.resize(1760,1000);self.setMinimumSize(1280,800);self.build();self.load_api_settings();self.bind_shortcuts();install_workspace(self);self.timeline.set_project(self.project);self.session=EditorSession(self,ROOT);self.export_controller=ExportController(self,FFMPEG);self.import_controller=ImportController(self,FFMPEG);self.statusBar().showMessage('就绪 · AI 会分析全片事件并自动安排字幕、动效、音效和音乐');self.auto_timer=QTimer(self);self.auto_timer.timeout.connect(self.auto_save);self.auto_timer.start(30000)
     def btn(self,text,fn,primary=False):
         b=QPushButton(text);b.clicked.connect(fn)
         if primary:b.setObjectName('primary')
@@ -221,6 +202,7 @@ class Main(QMainWindow):
     def filter_media(self,text):
         q=text.lower()
         for i in range(self.media.count()):self.media.item(i).setHidden(q not in self.media.item(i).text().lower())
+        if hasattr(self,'import_controller'):self.import_controller.refresh()
     def source_item_changed(self,item,previous=None):
         if not item:return
         path=item.data(Qt.UserRole)
@@ -273,31 +255,24 @@ class Main(QMainWindow):
     def import_files(self):
         paths,_=QFileDialog.getOpenFileNames(self,'导入视频或音频','','媒体 (*.mp4 *.mov *.mkv *.avi *.webm *.m4v *.mp3 *.wav *.m4a *.aac *.flac *.ogg)')
         if paths:self.start_import(paths)
-    def start_import(self,paths):
-        videos=[]
-        for p in paths:
-            if Path(p).suffix.lower() in AUDIO_EXT:self.project.bgm=p;self.bgm.setText(Path(p).name)
-            elif p not in self.metas:videos.append(p)
-        if not videos:return
-        self.notice.setText(f'正在读取 {len(videos)} 个素材的编码、时长和缩略图…');self.analyze_thread=MediaAnalyzeThread(videos,self.cache/'thumbs');self.analyze_thread.item.connect(self.media_ready);self.analyze_thread.failed.connect(lambda e:self.alert(e,True));self.analyze_thread.done.connect(self.import_done);self.analyze_thread.start()
+    def start_import(self,paths):return self.import_controller.enqueue(paths)
     def media_ready(self,m):
+        if m['path'] in self.media_items:return
         self.metas[m['path']]=m;pix=QPixmap(m['thumbnail']);self.thumbs[m['path']]=pix;item=QListWidgetItem(QIcon(pix),f"{m['name']}\n{m['duration']:.1f}s · {m['width']}×{m['height']} · {m['codec']}");item.setData(Qt.UserRole,m['path']);item.setToolTip(f"{m['codec']} · {m['fps']:.2f}fps · {'有声音' if m['has_audio'] else '无声音'}");self.media.addItem(item);self.media_items[m['path']]=item;self.timeline.set_thumbnails(self.thumbs)
         if m.get('needs_proxy'):
             out=proxy_path(str(self.cache/'proxies'),m['path'])
             if Path(out).exists():self.proxies[m['path']]=out;item.setText(item.text()+'\n✓ 流畅代理已就绪')
             else:self.proxy_queue.append((m['path'],out));item.setText(item.text()+'\n⏳ 等待生成流畅代理')
-    def import_done(self):self.notice.setText(f'已导入 {len(self.metas)} 个视频。可双击素材，或拖入时间线。');self.start_next_proxy()
-    def start_next_proxy(self):
-        if self.proxy_thread and self.proxy_thread.isRunning() or not self.proxy_queue:return
-        src,out=self.proxy_queue.pop(0);self.notice.setText('正在后台生成流畅代理：'+Path(src).name);self.proxy_thread=ProxyThread(src,out);self.proxy_thread.done.connect(self.proxy_done);self.proxy_thread.start()
+        item.setHidden(self.search.text().lower() not in item.text().lower())
+    def start_next_proxy(self):return self.import_controller.start_next_proxy()
     def proxy_done(self,src,out,ok,err):
         item=self.media_items.get(src)
         if ok:self.proxies[src]=out;item and item.setText(item.text().replace('⏳ 等待生成流畅代理','✓ 流畅代理已就绪'));self.notice.setText('代理生成完成：'+Path(src).name)
         else:item and item.setText(item.text().replace('⏳ 等待生成流畅代理','⚠ 代理生成失败'));self.notice.setText('代理生成失败，可继续使用原素材')
-        if self.current_clip>=0 and self.project.clips[self.current_clip].path==src:self.load_clip(self.current_clip,False)
-        if self.source_path==src:
+        if item:item.setHidden(self.search.text().lower() not in item.text().lower())
+        if ok and 0<=self.current_clip<len(self.project.clips) and self.project.clips[self.current_clip].path==src:self.load_clip(self.current_clip,False)
+        if ok and self.source_path==src:
             pos=self.source_player.position();self.source_player.setSource(QUrl.fromLocalFile(out));self.source_player.setPosition(pos)
-        self.proxy_thread=None;self.start_next_proxy()
     def add_selected_media(self):
         item=self.media.currentItem()
         if not item:return self.alert('请先选择一个视频素材。')

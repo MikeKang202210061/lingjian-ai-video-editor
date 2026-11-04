@@ -77,8 +77,12 @@ class EditorSession(QObject):
     def running_tasks(self):
         names = ('proxy_thread', 'analyze_thread', 'scene_thread', 'cloud_thread',
                  'render_thread', 'effect_thread', 'person_thread')
-        return [name for name in names if (task := getattr(self.window, name, None))
-                is not None and task.isRunning()]
+        tasks = [name for name in names if (task := getattr(self.window, name, None))
+                 is not None and task.isRunning()]
+        importer = getattr(self.window, 'import_controller', None)
+        if importer is not None and importer.busy:
+            tasks.append('media_import')
+        return tasks
 
     def can_replace_document(self):
         if not self.running_tasks():
@@ -204,6 +208,7 @@ class EditorSession(QObject):
         window.proxies.clear()
         window.proxy_queue.clear()
         window.media.clear()
+        window.import_controller.reset()
         window.source_path = ''
         window.source_in = window.source_out = 0.0
         window.mark_label.setText('入点 --  出点 --')
