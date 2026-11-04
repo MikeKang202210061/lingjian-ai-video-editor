@@ -167,11 +167,15 @@ def execute(request, resolve, *, sleep=time.sleep, clock=time.monotonic):
 
 def main():
     try:
-        request = validate_request(json.loads(sys.stdin.read(2_000_001)))
+        request = validate_request(json.loads(sys.stdin.buffer.read(2_000_001).decode('utf-8')))
         result = execute(request, connect())
     except Exception as exc:
         result = {'status': 'failed', 'message': str(exc)}
-    print(RESULT_PREFIX + json.dumps(result, ensure_ascii=False), flush=True)
+    # ASCII JSON framing works even when Windows pipes use a legacy code page.
+    payload = '\n' + RESULT_PREFIX + json.dumps(result, ensure_ascii=True) + '\n'
+    sys.stdout.flush()
+    sys.stdout.buffer.write(payload.encode('ascii'))
+    sys.stdout.buffer.flush()
 
 
 if __name__ == '__main__':

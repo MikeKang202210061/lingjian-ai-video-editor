@@ -308,17 +308,18 @@ class ResolveBackendTests(unittest.TestCase):
         self.old_output_unchanged()
 
     def test_real_subprocess_connects_only_to_explicit_fake_sdk(self):
-        sdk = self.root / 'fake-sdk'
+        sdk = self.root / '模拟-sdk'
         sdk.mkdir()
         (sdk / 'DaVinciResolveScript.py').write_text(
             "class Manager:\n def GetCurrentProject(self): return None\n"
             "class Resolve:\n def GetProjectManager(self): return Manager()\n"
-            " def GetProductName(self): return 'TEST ONLY'\n"
+            " def GetProductName(self): return '仅模拟测试'\n"
             " def GetVersionString(self): return 'fake'\n"
-            "def scriptapp(name): return Resolve()\n", encoding='utf-8')
-        result = run_bridge(sys.executable, str(sdk), {'version': 1, 'operation': 'probe'}, 'ffmpeg')
+            "def scriptapp(name):\n print('SDK startup',end='')\n return Resolve()\n", encoding='utf-8')
+        with patch.dict(os.environ, {'PYTHONIOENCODING': 'ascii'}):
+            result = run_bridge(sys.executable, str(sdk), {'version': 1, 'operation': 'probe'}, 'ffmpeg')
         self.assertEqual(result['status'], 'connected')
-        self.assertEqual(result['product'], 'TEST ONLY')
+        self.assertEqual(result['product'], '仅模拟测试')
         self.assertTrue(result['ready'])
 
     @unittest.skipUnless(shutil.which('ffmpeg'), 'FFmpeg required for generated MP4')

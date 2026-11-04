@@ -35,7 +35,7 @@ def run_bridge(python, sdk_path, request, ffmpeg, *, runner=subprocess.run,
                 (job_dir / 'cancel').touch()
         try:
             invoked = True
-            process = runner([python, str(helper)], input=json.dumps(request, ensure_ascii=False),
+            process = runner([python, str(helper)], input=json.dumps(request, ensure_ascii=True),
                              capture_output=True, text=True, encoding='utf-8', errors='replace',
                              env=env, timeout=30 if job_dir is None else 3700,
                              creationflags=0x08000000 if os.name == 'nt' else 0)
