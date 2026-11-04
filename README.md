@@ -1,5 +1,8 @@
 # LingJian AI Video Editor
 
+本次桌面版源码交付、Windows 电脑试用步骤、最终检查证据及未实测限制见
+[最终交付记录](docs/FINAL_DELIVERY.md)。当前交付不包含重新打包的 Windows 安装程序。
+
 LingJian is a Windows desktop nonlinear video editor that combines a traditional, editable timeline with optional AI-assisted footage analysis and narrative planning. Local media processing stays on the user's machine; cloud AI is only called after the user provides an API key and starts an analysis.
 
 ## Highlights
