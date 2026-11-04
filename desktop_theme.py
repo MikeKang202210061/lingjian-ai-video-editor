@@ -14,6 +14,7 @@ QPushButton:pressed{background:#E7EFF8;border-color:#7EB3EB;padding-top:8px}
 QPushButton:disabled{background:#EDF1F5;color:#AAB3BF;border-color:#E3E8EE}
 QPushButton#primary{background:#1477E6;color:white;border:1px solid #0D69D0;border-top:1px solid #69ADFA;font-weight:700}
 QPushButton#primary:hover{background:#2588F3;border-color:#0C6CD7}
+QPushButton#primary:disabled{background:#EDF1F5;color:#738197;border-color:#D6E0EB}
 QPushButton#danger{color:#C63D4E;background:#FFF5F6;border-color:#F4D3D8}
 QLineEdit,QTextEdit,QPlainTextEdit,QDoubleSpinBox,QSpinBox,QComboBox{background:rgba(255,255,255,242);color:#1E293B;border:1px solid #D5DFEA;border-top:1px solid #FFFFFF;border-radius:9px;padding:7px;selection-background-color:#A9CFF7}
 QLineEdit:focus,QTextEdit:focus,QPlainTextEdit:focus,QDoubleSpinBox:focus,QSpinBox:focus,QComboBox:focus{border:1px solid #4C9AF0;background:#FFFFFF}

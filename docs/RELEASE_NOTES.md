@@ -62,3 +62,19 @@
   cancellation and concurrency management remain pending.
 - Six portable session tests and fourteen offscreen interaction tests added.
 
+# Protected and cancellable export
+
+- One final export per window, shared busy states for both existing export
+  buttons, and a visible cancel control in the export inspector.
+- Retain the worker until its finished signal, restore controls after success,
+  failure or cancellation, and allow retry without replacing a running thread.
+- Render the startup timeline snapshot to a unique adjacent temporary MP4;
+  publish only after encoding and validation succeed. Failed or cancelled jobs
+  preserve an existing output and clean temporary files when possible.
+- Reject input-file destinations, including hard links and symbolic links.
+- Export and effect previews share process/error handling; short previews use
+  media probing rather than the final-export minimum file-size requirement.
+- Ten portable process tests, four real FFmpeg tests and eleven offscreen export
+  tests added. General import/AI cancellation and Windows device/installer
+  validation remain pending.
+

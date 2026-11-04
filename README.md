@@ -144,6 +144,29 @@ or changing projects; general task cancellation is not yet implemented.
 python -m unittest tests.test_desktop_session tests.test_desktop_workspace -v
 ```
 
+## Cancellable, protected exports
+
+Each window runs one final export at a time. Both export buttons share its busy
+state, the inspector switches to the export controls, and **取消导出** requests
+cancellation. The editor retains the worker until it finishes; cancellation or
+failure restores the controls so the export can be retried.
+
+Rendering uses a snapshot of the timeline at startup. FFmpeg writes a unique
+temporary MP4 beside the destination; only a successful render and compatibility
+check replace the destination. Failure or cancellation preserves an existing
+output. Selecting an input file, including a link to it, as the destination is
+rejected. Effect previews share the process handling but use a media-readability
+check so valid short previews are not rejected by the final-export size check.
+
+Cancellation stops the encoding process cooperatively; if validation is already
+running, it waits for that check to return before discarding the temporary file.
+This is export cancellation, not a general manager for import or AI tasks.
+
+```powershell
+python -m unittest tests.test_desktop_export tests.test_desktop_session tests.test_desktop_workspace -v
+python -m unittest tests.test_render_jobs_ffmpeg -v
+```
+
 ## Scene-aware cloud analysis
 
 The desktop AI Director now scans a small 64×36 proxy locally at four samples per
