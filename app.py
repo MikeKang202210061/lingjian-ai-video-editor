@@ -18,6 +18,7 @@ from music_library import MUSIC_LIBRARY,resolve_music,music_by_id
 from creative_director import apply_global_creative_treatment
 from desktop_workspace import install_workspace
 from desktop_theme import STYLE
+from desktop_session import EditorSession
 
 ROOT=Path(getattr(sys,'_MEIPASS',Path(__file__).parent));FFMPEG=str(ROOT/'ffmpeg.exe') if (ROOT/'ffmpeg.exe').exists() else (shutil.which('ffmpeg') or 'ffmpeg')
 
@@ -143,7 +144,7 @@ class Main(QMainWindow):
     def __init__(self):
         super().__init__();self.project=Project();self.metas={};self.media_items={};self.thumbs={};self.proxies={};self.proxy_queue=[];self.proxy_thread=None;self.analyze_thread=None;self.scene_thread=None;self.cloud_thread=None;self.render_thread=None;self.effect_thread=None;self.person_thread=None;self.sfx_player=None;self.sfx_audio=None;self.current_clip=-1;self.history=[];self.redo_history=[];self._trim_snapshot=False;self.project_path='';self.pending_position=None;self.pending_autoplay=False;self.source_path='';self.source_in=0.;self.source_out=0.;self.settings=QSettings('LingJianAI','Editor');self.editing_profile=self.load_editing_profile()
         self.cache=Path(QStandardPaths.writableLocation(QStandardPaths.CacheLocation) or tempfile.gettempdir())/'LingJianAI';self.cache.mkdir(parents=True,exist_ok=True);self.autosave=self.cache/'autosave.ljproject'
-        self.setWindowTitle('灵剪 AI 视频编辑器 4.13 · 全片创意导演');self.resize(1760,1000);self.setMinimumSize(1280,800);self.build();self.load_api_settings();self.bind_shortcuts();install_workspace(self);self.timeline.set_project(self.project);self.statusBar().showMessage('就绪 · AI 会分析全片事件并自动安排字幕、动效、音效和音乐');self.auto_timer=QTimer(self);self.auto_timer.timeout.connect(self.auto_save);self.auto_timer.start(30000)
+        self.setWindowTitle('灵剪 AI 视频编辑器 4.13 · 全片创意导演');self.resize(1760,1000);self.setMinimumSize(1280,800);self.build();self.load_api_settings();self.bind_shortcuts();install_workspace(self);self.timeline.set_project(self.project);self.session=EditorSession(self,ROOT);self.statusBar().showMessage('就绪 · AI 会分析全片事件并自动安排字幕、动效、音效和音乐');self.auto_timer=QTimer(self);self.auto_timer.timeout.connect(self.auto_save);self.auto_timer.start(30000)
     def btn(self,text,fn,primary=False):
         b=QPushButton(text);b.clicked.connect(fn)
         if primary:b.setObjectName('primary')
@@ -322,8 +323,10 @@ class Main(QMainWindow):
         self.history.append(self.project.to_dict());self.project=Project.from_dict(self.redo_history.pop());self.restore_project('已重做')
     def update_history_buttons(self):self.undo_btn.setEnabled(bool(self.history));self.redo_btn.setEnabled(bool(self.redo_history))
     def restore_project(self,msg=''):
-        self.timeline.set_project(self.project);self.timeline.set_thumbnails(self.thumbs);self.current_clip=-1;self.update_history_buttons();self.refresh_sfx_list();self.refresh_overlay_list();self.statusBar().showMessage(msg or '工程已更新')
-    def changed(self,msg):self.timeline.set_project(self.project);self.timeline.set_thumbnails(self.thumbs);self.refresh_overlay_list();self.statusBar().showMessage(f'{msg} · V1 {len(self.project.clips)} 段 · 叠加 {len(self.project.overlays)} 层 · {self.project.duration:.1f}秒')
+        self.timeline.set_project(self.project);self.timeline.set_thumbnails(self.thumbs);self.current_clip=-1;self.update_history_buttons();self.refresh_sfx_list();self.refresh_overlay_list();self.statusBar().showMessage(msg or '工程已更新');self.update_document_state()
+    def changed(self,msg):self.timeline.set_project(self.project);self.timeline.set_thumbnails(self.thumbs);self.refresh_overlay_list();self.statusBar().showMessage(f'{msg} · V1 {len(self.project.clips)} 段 · 叠加 {len(self.project.overlays)} 层 · {self.project.duration:.1f}秒');self.update_document_state()
+    def update_document_state(self):
+        if hasattr(self,'session'):self.session.refresh()
     def begin_canvas_edit(self):
         if not self._trim_snapshot:self.remember();self._trim_snapshot=True
     def end_canvas_edit(self):self._trim_snapshot=False;self.changed('时间线已调整')
@@ -639,40 +642,11 @@ class Main(QMainWindow):
     def choose_bgm(self):
         p,_=QFileDialog.getOpenFileName(self,'选择背景音乐','','音频 (*.mp3 *.wav *.m4a *.aac *.flac *.ogg)')
         if p:self.remember();self.project.bgm=p;self.bgm.setText(Path(p).name);self.changed('背景音乐已设置')
-    def auto_save(self):
-        if self.project.clips:
-            try:self.project.title=self.title.text();self.project.save(self.autosave);self.statusBar().showMessage(f'已自动保存 · {len(self.project.clips)} 个片段 · {self.project.duration:.1f}秒')
-            except:pass
-    def save_project(self):
-        if not self.project_path:return self.save_project_as()
-        return self._save_project_to(self.project_path)
-    def save_project_as(self):
-        p,_=QFileDialog.getSaveFileName(self,'工程另存为',self.title.text()+'.ljproject','灵剪工程 (*.ljproject)')
-        if not p:return False
-        if Path(p).suffix.lower()!='.ljproject':p+='.ljproject'
-        return self._save_project_to(p)
-    def _save_project_to(self,path):
-        try:
-            self.project.title=self.title.text();self.project.bgm_volume=self.bgm_volume.value()
-            self.project.save(path)
-        except Exception as exc:
-            self.alert('工程保存失败，原文件已保留：'+str(exc),True)
-            return False
-        self.project_path=path
-        self.statusBar().showMessage('工程已保存：'+path)
-        return True
-    def open_project(self):
-        p,_=QFileDialog.getOpenFileName(self,'打开工程','','灵剪工程 (*.ljproject)')
-        if not p:return
-        try:
-            proj=Project.load(p)
-            for cue in proj.sfx:
-                bundled=resolve_sfx(ROOT,cue.effect_id)
-                if cue.effect_id and Path(bundled).exists():cue.path=bundled
-            missing=[c.path for c in proj.clips if not Path(c.path).exists()]+[c.path for c in proj.overlays if not Path(c.path).exists()]
-            if missing:return self.alert('找不到以下原素材：\n'+'\n'.join(missing[:8]),True)
-            self.project=proj;self.project_path=p;self.title.setText(proj.title);self.bgm.setText(Path(proj.bgm).name if proj.bgm else '');self.bgm_volume.setValue(proj.bgm_volume);self.history=[];self.redo_history=[];self.restore_project('工程已打开');paths=list(dict.fromkeys([c.path for c in proj.clips]+[c.path for c in proj.overlays]));self.start_import(paths)
-        except Exception as e:self.alert('工程打开失败：'+str(e),True)
+    def auto_save(self):return self.session.autosave()
+    def save_project(self):return self.session.save()
+    def save_project_as(self):return self.session.save_as()
+    def _save_project_to(self,path):return self.session.save_to(path)
+    def open_project(self):return self.session.open()
     def preflight(self,out):
         if not self.project.clips:raise ValueError('时间线为空')
         missing=[c.path for c in self.project.clips if not Path(c.path).exists()]+[c.path for c in self.project.overlays if not Path(c.path).exists()]
@@ -702,10 +676,7 @@ class Main(QMainWindow):
             try:meta=validate_rendered_mp4(FFMPEG,path);msg=f'兼容性校验通过 · H.264/AAC · {meta["width"]}×{meta["height"]} · {meta["duration"]:.1f}秒'
             except Exception as e:ok=False;msg='编码结束但兼容性校验失败：'+str(e)
         self.render_progress.setValue(100 if ok else 0);self.render_status.setText(('导出完成并已校验：'+path) if ok else '导出失败，可查看错误详情。');self.alert(('导出完成：\n'+path+'\n\n'+msg) if ok else ('FFmpeg 导出失败：\n'+msg),not ok)
-    def closeEvent(self,e):
-        if self.render_thread and self.render_thread.isRunning():
-            if QMessageBox.question(self,'正在导出','视频仍在导出，确定要退出吗？')!=QMessageBox.Yes:return e.ignore()
-        self.auto_save();e.accept()
+    def closeEvent(self,e):self.session.close(e)
 
 if __name__=='__main__':
     if len(sys.argv)>=4 and sys.argv[1]=='--person-smoke':

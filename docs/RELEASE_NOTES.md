@@ -49,3 +49,16 @@
 - Six offscreen desktop interaction tests and three persistence tests added.
 - Research, feature tradeoffs and remaining priorities: `docs/IMPROVEMENT_REVIEW.md`.
 
+# Unsaved project protection and recovery
+
+- Shared Save / Discard / Cancel handling for close and project replacement;
+  cancelled or failed saves preserve the current document.
+- Visible modified/saved/new status, based on content rather than undo-stack size.
+- Independent recovery snapshots per window, a startup banner and File-menu
+  restore chooser; restored documents use Save As to protect the original.
+- Legacy autosave support, unchanged-snapshot write avoidance and selective cleanup.
+- Opening the current file after Save reloads the newly saved version.
+- Close/project replacement waits for existing background work to finish; general
+  cancellation and concurrency management remain pending.
+- Six portable session tests and fourteen offscreen interaction tests added.
+

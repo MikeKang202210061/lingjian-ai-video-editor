@@ -121,6 +121,29 @@ python -m unittest tests.test_desktop_workspace -v
 The tests select Qt's offscreen platform by default. Linux shell users can also
 set `QT_QPA_PLATFORM=offscreen` explicitly. They do not replace Windows manual QA.
 
+## Unsaved changes and recovery
+
+The title bar and status bar distinguish new, modified and saved projects. Opening
+another project or closing the editor offers Save / Discard / Cancel. Cancelling
+Save As or a failed save keeps the current document open. Undoing back to saved
+content clears the modified flag.
+
+Autosave writes a separate recovery copy for each window every 30 seconds when
+project content changes; it does not overwrite the original or mark it saved.
+On startup, a banner and **File → 恢复自动保存…** expose older recovery copies,
+including the previous version's `autosave.ljproject`. Restore opens an unsaved
+document and asks you to Save As. Successful manual saving removes that restored
+copy and the current window's backup, preserving unrelated copies.
+
+Recovery covers serialized project content, the project title and music volume.
+Unapplied inspector parameters, unused media-library entries, playback position
+and running tasks are not restored. Background work must finish before closing
+or changing projects; general task cancellation is not yet implemented.
+
+```powershell
+python -m unittest tests.test_desktop_session tests.test_desktop_workspace -v
+```
+
 ## Scene-aware cloud analysis
 
 The desktop AI Director now scans a small 64×36 proxy locally at four samples per
