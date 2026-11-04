@@ -60,7 +60,7 @@ class ResolveController(QObject):
         toggle.toggled.connect(body.setVisible)
         body.hide()
         note = QLabel('需本机运行兼容的 Resolve Studio，并开启 Local 外部脚本。'
-                      '此版本仅传递素材、入出点和顺序，使用新建达芬奇工程渲染；'
+                      '传递素材、入出点、顺序和 Skill 静态构图/轻量饱和度，使用新工程渲染；'
                       '字幕、转场、蒙版、叠加和混音尚未迁移。')
         note.setWordWrap(True)
         note.setMinimumWidth(0)
@@ -93,7 +93,7 @@ class ResolveController(QObject):
         form_layout.addLayout(form)
         self.probe_button = QPushButton('检测达芬奇连接')
         self.probe_button.clicked.connect(self.probe)
-        self.render_button = QPushButton('达芬奇基础版导出 MP4')
+        self.render_button = QPushButton('达芬奇实验导出 MP4')
         self.render_button.clicked.connect(self.render)
         self.cancel_button = QPushButton('取消达芬奇任务')
         self.cancel_button.clicked.connect(self.cancel)
@@ -198,7 +198,12 @@ class ResolveController(QObject):
         try:
             report = window.preflight(path)
             warnings = transfer_warnings(window.project, window.timeline.audio_muted)
-            text = '将新建独立达芬奇工程，仅执行素材入出点、顺序拼接与原声导出。\n'
+            text = '将新建独立达芬奇工程，执行素材入出点、顺序拼接与原声导出。\n'
+            treated = sum(bool(c.resolve_treatment) for c in window.project.clips)
+            if treated:
+                text += (f'另有 {treated} 个镜头携带 Skill 静态缩放及轻量饱和度指令。'
+                         '这不等同本地动态运镜；CDL 不包含曝光/白平衡或 Log 色彩转换。'
+                         '真实 SDK 尚待实机验证，接口拒绝时任务会失败并保留旧输出。\n')
             if warnings:
                 text += '\n本次不会迁移：' + '、'.join(warnings) + '。\n'
             if report['warnings']:

@@ -6,6 +6,11 @@
 后续新增的[达芬奇实验后端](docs/RESOLVE_BACKEND.md)支持在灵剪内检测本机 SDK、发送基础剪辑与渲染任务，
 并预览已校验输出。目前仅通过模拟 SDK 和离屏检查，尚未在真实达芬奇验证，未迁移复杂特效。
 
+新增两套[可执行剪辑 Skill](docs/EDITING_SKILLS.md)：**科技实验讲解（参考何同学）**与
+**影像探索纪实（参考影视飓风）**。在“AI 导演 → 剪辑 Skill”选择，规则进入素材分析和方案生成，
+应用后可撤销并随工程保存。本地使用已有运镜/字幕/声音能力；达芬奇新增受限静态构图和轻量饱和度实验映射，
+不等同完整特效迁移或作者风格复刻，真实 SDK 和云端质量尚未验收。
+
 LingJian is a Windows desktop nonlinear video editor that combines a traditional, editable timeline with optional AI-assisted footage analysis and narrative planning. Local media processing stays on the user's machine; cloud AI is only called after the user provides an API key and starts an analysis.
 
 ## Highlights

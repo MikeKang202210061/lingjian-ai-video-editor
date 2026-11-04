@@ -16,6 +16,16 @@ def number(value, name, low, high):
     return value
 
 
+def validate_treatment(data):
+    if not isinstance(data, dict) or set(data) != {'zoom', 'saturation'}:
+        raise ValueError('Only static zoom and saturation are supported')
+    for key, low, high in [('zoom', 1, 1.12), ('saturation', .85, 1.15)]:
+        if type(data[key]) not in (int, float):
+            raise ValueError('Treatment values must be JSON numbers')
+        number(data[key], key, low, high)
+    return data
+
+
 def validate_request(data):
     if (not isinstance(data, dict) or type(data.get('version')) is not int
             or data.get('version') != PROTOCOL):
@@ -52,8 +62,10 @@ def validate_request(data):
         raise ValueError('Resolve basic mode supports 1–500 clips')
     total = 0
     for clip in clips:
-        if not isinstance(clip, dict) or set(clip) != {'path', 'start', 'end'}:
+        if not isinstance(clip, dict) or set(clip) not in ({'path', 'start', 'end'}, {'path', 'start', 'end', 'treatment'}):
             raise ValueError('Invalid clip instruction')
+        if 'treatment' in clip:
+            validate_treatment(clip['treatment'])
         source = Path(clip['path'])
         if not source.is_absolute() or not source.is_file():
             raise ValueError('Missing source: ' + str(source))
@@ -98,6 +110,7 @@ def project_request(project, output, width, height, job_id):
                'output': str(output),
                'job_dir': str(output.parent / ('.lingjian-resolve-' + job_id)),
                'acknowledge_basic_only': True,
-               'clips': [{'path': str(Path(c.path).resolve()), 'start': c.start, 'end': c.end}
+               'clips': [{'path': str(Path(c.path).resolve()), 'start': c.start, 'end': c.end,
+                          **({'treatment': dict(c.resolve_treatment)} if c.resolve_treatment else {})}
                          for c in project.clips]}
     return validate_request(request)

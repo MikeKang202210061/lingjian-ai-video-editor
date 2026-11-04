@@ -87,6 +87,7 @@ class Clip:
     transition_duration:float=.35;mask_shape:str='none';mask_x:float=.5;mask_y:float=.5;mask_width:float=.72;mask_height:float=.72;mask_feather:float=18.;mask_opacity:float=1.;person_effect_path:str='';person_effect_start:float=0.;person_effect_end:float=0.;person_effect_mode:str='';title_effect:str='';title_text:str='';title_fill_segments:list=field(default_factory=list);title_color:str='#FFFFFF'
     role:str='';reason:str='';capture_order:str='';ai_selected:bool=False
     caption_effect:str='clean';motion_effect:str='none'
+    resolve_treatment:dict=field(default_factory=dict)
     @property
     def duration(self): return round(self.end-self.start,3)
     def validate(self):

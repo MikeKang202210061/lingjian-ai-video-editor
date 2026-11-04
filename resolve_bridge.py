@@ -108,6 +108,20 @@ def execute(request, resolve, *, sleep=time.sleep, clock=time.monotonic):
             instructions.append({'mediaPoolItem': item, 'startFrame': start, 'endFrame': end})
         timeline = require(pool.CreateTimelineFromClips('LingJian 基础剪辑', instructions), '时间线创建失败。')
         require(project.SetCurrentTimeline(timeline), '无法设置渲染时间线。')
+        if any('treatment' in clip for clip in request['clips']):
+            timeline_items = require(timeline.GetItemListInTrack('video', 1), '无法读取 Skill 镜头。')
+            # Never apply recipes to a different count/order of timeline objects.
+            if len(timeline_items) != len(request['clips']):
+                raise RuntimeError('Skill 镜头数量与达芬奇时间线不一致。')
+            for clip, target in zip(request['clips'], timeline_items):
+                recipe = clip.get('treatment')
+                if not recipe:
+                    continue
+                require(target.SetProperty('ZoomX', recipe['zoom']), '达芬奇拒绝 Skill 水平缩放。')
+                require(target.SetProperty('ZoomY', recipe['zoom']), '达芬奇拒绝 Skill 垂直缩放。')
+                require(target.SetCDL({'NodeIndex': '1', 'Slope': '1 1 1', 'Offset': '0 0 0',
+                                       'Power': '1 1 1', 'Saturation': str(recipe['saturation'])}),
+                        '达芬奇拒绝 Skill CDL；请检查安装版接口及首个调色节点。')
         codecs = project.GetRenderCodecs('mp4') or {}
         # Do not guess a codec's identifier or silently switch formats.
         codec = next((value for value in codecs.values() if value == 'H264'), None)
