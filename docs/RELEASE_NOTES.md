@@ -19,3 +19,20 @@
 - 101 片段 / 365.4 秒正文顺序修复连续 5 轮通过。
 - 多轨合成、8 套创意开篇、16 音效混音旧功能回归全部通过。
 
+
+# Scene-aware footage analysis
+
+- Local change/motion screening plus full-video coverage, capped at 24 frames in
+  three labelled contact sheets per source. The visual overview remains one call.
+- Source-relative decoded frame timestamps and a stable, source-aware cache with
+  an inspectable manifest. Silent clips can be analyzed without a transcript.
+- Optional candidate-boundary refinement in AI 接口, off by default: up to two
+  candidates, eight frames, and one extra visual request per source. Invalid moves
+  are rejected; provider/extraction failures retain the initial plan and report a warning.
+- Existing preview, plan validation, application, undo, and rendering are retained.
+- Added portable selection/request/fallback tests and real FFmpeg scene, timestamp,
+  contact-sheet grouping, silent-media, and cache-recovery tests.
+- Limits: four-fps screening can miss very short events; extra images/refinement
+  may increase API cost. No live-provider quality or Windows GUI claim is made by
+  the automated checks.
+

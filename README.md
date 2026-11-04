@@ -97,6 +97,38 @@ python app.py
 ```
 
 
+## Scene-aware cloud analysis
+
+The desktop AI Director now scans a small 64×36 proxy locally at four samples per
+second. It combines full-video coverage with scene-change and accumulated-motion
+samples, keeping at most **24 frames**, grouped into at most **three contact sheets**
+of eight frames each. The overview sheets are sent together in one visual request.
+Each tile is labelled with its actual decoded presentation time relative to the
+source; a cached `manifest.json` records the same mapping. Replacing a source file
+invalidates its derived-media cache. If the change scan is unavailable, analysis
+falls back to evenly distributed timeline coverage and emits a warning.
+
+In **AI 接口**, optionally enable **候选二次精看**. It is off by default. When enabled,
+one additional visual request examines at most eight frames around the two
+highest-scoring candidates. A boundary can move by at most one second, must remain
+inside the source and the supplied window, and must retain at least half a second.
+If refinement fails, the initial plan remains available and the AI status reports
+the fallback. The plan still requires review before it reaches the timeline.
+
+These are request-count limits, not a fixed price: image resolution, model pricing,
+transcription, generated text, and the separate whole-project planning request all
+affect cost. Grouped sheets can cost more than the former single 6×6 overview.
+Four-fps scanning and sparse visual review can still miss very short actions;
+timestamps identify sampled frames, not guaranteed frame-exact action boundaries.
+The unaligned audio transcript provides context, not proof of a particular clip's
+dialogue. No new dependencies are required beyond the existing Pillow dependency.
+
+Run the real-media sampling checks with FFmpeg installed:
+
+```powershell
+python -m unittest tests.test_visual_sampling_ffmpeg -v
+```
+
 ## Optional person-segmentation model
 
 Download `u2net_human_seg.onnx`, verify its SHA-256 value against `MODEL_SHA256` in `person_ai.py`, and place it at:
@@ -132,3 +164,4 @@ Additional generated-media tests in `tests/` require FFmpeg. The portable runner
 ## Scope
 
 LingJian focuses on editable AI-assisted assembly, short/long-form narrative planning, subtitles, transitions, multitrack composition, and dependable local export. It is not intended to replace the advanced color, compositing, audio, collaboration, or multicamera systems in a full professional post-production suite.
+
