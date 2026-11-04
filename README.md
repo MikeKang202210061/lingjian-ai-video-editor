@@ -96,6 +96,12 @@ pip install -r requirements.txt
 python app.py
 ```
 
+To try the changes in **draft PR #1**, use the
+[working-branch ZIP](https://github.com/MikeKang202210061/lingjian-ai-video-editor/archive/refs/heads/codex/scene-aware-video-analysis.zip),
+or run `git switch codex/scene-aware-video-analysis` after cloning, before starting
+the app. Existing Windows installers do not yet include these source changes;
+the branch has not completed Windows device or installer acceptance checks.
+
 
 ## Desktop workspace improvements
 
@@ -192,6 +198,12 @@ python -m unittest tests.test_render_jobs_ffmpeg -v
 
 ## Scene-aware cloud analysis
 
+Offline, cloud and quick plan generation share a busy check, preventing another
+analysis from replacing a running worker or competing for the same result UI.
+Completed offline/cloud results retain the target duration and prompt captured
+at startup, even if those controls were edited during processing. Plans still
+require review before being applied; this is not general task cancellation.
+
 The desktop AI Director now scans a small 64×36 proxy locally at four samples per
 second. It combines full-video coverage with scene-change and accumulated-motion
 samples, keeping at most **24 frames**, grouped into at most **three contact sheets**
@@ -236,6 +248,13 @@ The model is intentionally excluded from Git because of its size and separate di
 
 ```powershell
 python tests/run_tests.py
+```
+
+For the desktop checks, including a generated-media import → save → reopen →
+export workflow:
+
+```powershell
+python -m unittest tests.test_desktop_analysis tests.test_desktop_workflow_ffmpeg tests.test_desktop_import tests.test_desktop_media_workers tests.test_desktop_session tests.test_desktop_export tests.test_desktop_workspace -v
 ```
 
 Additional generated-media tests in `tests/` require FFmpeg. The portable runner covers edit-plan validation, continuity, long-form ordering, personalization, capture order, and the mocked AI workflow.

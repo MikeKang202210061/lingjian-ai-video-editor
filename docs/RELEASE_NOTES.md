@@ -94,3 +94,16 @@
   locally generated FFmpeg media. General read/AI cancellation, old-cache
   validation and Windows device/installer checks remain pending.
 
+# Analysis consistency and workflow verification
+
+- Offline, cloud and quick analysis share a re-entry check so a running analysis
+  keeps its worker and result UI. Existing analysis choices remain available.
+- Offline/cloud result envelopes retain the startup target and prompt rather
+  than reading changed controls when the result arrives.
+- Seven mocked-provider/re-entry checks and one generated-media desktop workflow
+  added. Real import, save, project reopen, export publication and source-file
+  preservation pass together with the existing desktop regressions.
+- Branch trial instructions distinguish source changes from the old installers.
+- This remains a draft source update; Windows hardware and installer acceptance,
+  general cancellation and the remaining task lifecycles are not claimed complete.
+

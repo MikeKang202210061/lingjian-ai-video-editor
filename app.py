@@ -53,7 +53,7 @@ class SceneThread(QThread):
                 analyses.append({'meta':m,'segments':segments})
             from ai_api import local_sequence
             sequence=local_sequence(analyses,self.target,self.prompt)
-            self.progress.emit(100,'深度初剪方案已生成，等待确认');self.done.emit({'analyses':analyses,'sequence':sequence})
+            self.progress.emit(100,'深度初剪方案已生成，等待确认');self.done.emit({'analyses':analyses,'sequence':sequence,'target':self.target,'prompt':self.prompt})
         except Exception as e:self.failed.emit(str(e))
 
 class CloudAIThread(QThread):
@@ -70,7 +70,7 @@ class CloudAIThread(QThread):
                 out.append({'meta':m,'segments':segments})
             self.progress.emit(92,'总剪辑师正在规划叙事顺序与切点')
             sequence=plan_sequence(self.cfg,out,self.target,self.prompt)
-            self.progress.emit(100,'AI 内容分析与全局剪辑规划完成');self.done.emit({'analyses':out,'sequence':sequence,'warnings':analysis_warnings})
+            self.progress.emit(100,'AI 内容分析与全局剪辑规划完成');self.done.emit({'analyses':out,'sequence':sequence,'warnings':analysis_warnings,'target':self.target,'prompt':self.prompt})
         except Exception as e:self.failed.emit(str(e))
 
 class PersonTrackThread(QThread):
@@ -450,7 +450,14 @@ class Main(QMainWindow):
         if hasattr(self,'profile_status'):self.profile_status.setText(profile_summary(self.editing_profile))
         if notify:self.alert('已学习当前人工顺序。下一次 AI 成片会读取这份本地偏好。')
     def edit_prompt(self):return self.prompt.toPlainText().strip()+'\n导演风格：'+self.story_style.currentText()+'\n'+profile_prompt(self.editing_profile)
+    def analysis_running(self):
+        if any(task is not None and task.isRunning() for task in (self.scene_thread,self.cloud_thread)):
+            self.ai_status.setText('已有分析任务，请等待完成后再生成方案。')
+            self.statusBar().showMessage('分析仍在运行，已保留当前任务。')
+            return True
+        return False
     def quick_ai(self):
+        if self.analysis_running():return
         if not self.project.clips:return self.alert('请先将素材加入时间线。')
         draft=Project.from_dict(self.project.to_dict());draft.auto_edit(self.target.value());draft.clips.sort(key=lambda c:capture_key(c.path,c.start));paths=list(dict.fromkeys(c.path for c in draft.clips));analyses=[]
         for path in paths:
@@ -460,6 +467,7 @@ class Main(QMainWindow):
         try:self.review_ai_plan(build_edit_plan(sequence,analyses,self.target.value(),self.edit_prompt(),'quick'))
         except Exception as e:self.alert('快速方案生成失败：'+str(e),True)
     def deep_ai(self):
+        if self.analysis_running():return
         metas=[]
         for p in dict.fromkeys(c.path for c in self.project.clips):
             if p in self.metas:
@@ -478,7 +486,7 @@ class Main(QMainWindow):
         return clips
     def deep_done(self,result):
         self.deep_btn.setEnabled(True);self.ai_progress.setValue(100)
-        try:self.review_ai_plan(build_edit_plan(result['sequence'],result['analyses'],self.target.value(),self.edit_prompt(),'offline'))
+        try:self.review_ai_plan(build_edit_plan(result['sequence'],result['analyses'],result.get('target',self.target.value()),result.get('prompt',self.edit_prompt()),'offline'))
         except Exception as e:self.alert('离线方案校验失败：'+str(e),True)
     def deep_failed(self,msg):self.deep_btn.setEnabled(True);self.alert('深度分析失败：'+msg,True)
     def load_api_settings(self):
@@ -491,6 +499,7 @@ class Main(QMainWindow):
         except Exception as e:self.alert('接口设置保存失败：'+str(e),True)
     def api_config(self):return APIConfig(self.api_url.text().strip(),self.api_key.text().strip(),self.api_model.text().strip(),self.api_transcribe.text().strip(),refine_highlights=self.api_refine.isChecked())
     def cloud_ai(self):
+        if self.analysis_running():return
         cfg=self.api_config()
         if not cfg.api_key:return self.alert('请先在“AI 接口”标签页填写并保存 API Key。')
         paths=list(dict.fromkeys(c.path for c in self.project.clips)) or ([self.source_path] if self.source_path else [])
@@ -505,7 +514,7 @@ class Main(QMainWindow):
     def cloud_done(self,result):
         self.cloud_btn.setEnabled(True);self.ai_progress.setValue(100)
         try:
-            self.review_ai_plan(build_edit_plan(result['sequence'],result['analyses'],self.target.value(),self.edit_prompt(),'cloud'))
+            self.review_ai_plan(build_edit_plan(result['sequence'],result['analyses'],result.get('target',self.target.value()),result.get('prompt',self.edit_prompt()),'cloud'))
             if result.get('warnings'):self.ai_status.setText('；'.join(result['warnings']))
         except Exception as e:self.alert('AI 方案校验失败：'+str(e),True)
     def cloud_failed(self,msg):
