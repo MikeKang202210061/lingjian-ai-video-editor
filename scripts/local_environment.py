@@ -142,8 +142,13 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=('setup', 'check', 'start'))
     parser.add_argument('--resolve', action='store_true', help='Read-only SDK connection probe; never render or alter a project.')
+    parser.add_argument('--resolve-library', help='Save the installed fusionscript.dll path in ignored project-local configuration.')
     args = parser.parse_args(argv)
     try:
+        if args.resolve_library:
+            sys.path.insert(0, str(ROOT))
+            from resolve_runtime import configure_library
+            configure_library(args.resolve_library)
         if args.action == 'setup':
             python = setup()
             print('Local environment prepared: ' + str(python))

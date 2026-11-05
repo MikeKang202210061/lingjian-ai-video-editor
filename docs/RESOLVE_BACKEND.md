@@ -49,6 +49,16 @@
 上方环境变量路径是示意，建议用文件夹选择器选择实际位置；自定义安装的脚本库路径需按该 README 配置。
 此版本从源码运行；尚未为独立安装包打包桥接脚本。普通剪辑/本地导出无需启用本模块。
 
+自定义安装位置可通过项目环境保存原生库路径（仅写入被忽略的 `.local/resolve.json`）：
+
+```powershell
+.\.venv\Scripts\python.exe scripts/local_environment.py check --resolve --resolve-library "E:\达芬奇\fusionscript.dll"
+```
+
+诊断和 GUI 桥接共享该配置；显式 `RESOLVE_SCRIPT_LIB` 优先。缺失或无效配置会在启动前报告错误。
+模块导入/连接阶段及原生进程退出码会进入失败诊断。`0xC0000005` 表示原生访问异常，
+不能据此断言授权缺失或要求开启 Local。2026-11-04 本机实测尚未取得 SDK 连接，详见本地交接记录。
+
 ## 任务与文件保护
 
 - 只接受 `probe` 和 `render_basic` 两个操作，拒绝未知字段、任意代码、非有限数值、无效范围和素材覆盖。

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from core import validate_rendered_mp4
 from resolve_plan import validate_request
+from resolve_runtime import bridge_environment
 
 RESULT_PREFIX = 'LJ_RESOLVE_RESULT '
 
@@ -17,7 +18,10 @@ def run_bridge(python, sdk_path, request, ffmpeg, *, runner=subprocess.run,
     helper = Path(__file__).with_name('resolve_bridge.py')
     if not helper.is_file():
         return {'status': 'failed', 'message': '桥接脚本缺失，请使用本分支源码运行。'}
-    env = dict(os.environ)
+    try:
+        env = bridge_environment()
+    except (OSError, ValueError, TypeError) as exc:
+        return {'status': 'failed', 'message': 'Resolve 本机脚本库配置无效：' + str(exc)}
     if sdk_path:
         env['RESOLVE_SCRIPT_API'] = str(sdk_path)
     job_dir = Path(request['job_dir']) if request['operation'] == 'render_basic' else None
@@ -48,7 +52,10 @@ def run_bridge(python, sdk_path, request, ffmpeg, *, runner=subprocess.run,
         messages = [line[len(RESULT_PREFIX):] for line in process.stdout.splitlines()
                     if line.startswith(RESULT_PREFIX)]
         if not messages:
-            result['message'] += '\n' + (process.stderr or process.stdout)[-1600:]
+            code = process.returncode
+            result['message'] += ('\nBridge exit code: ' + str(code) +
+                                  (' (0x%08X)' % (code & 0xffffffff) if code else '') +
+                                  '\n' + (process.stderr or process.stdout)[-1600:])
             return result
         response = json.loads(messages[-1])
         if not isinstance(response, dict) or response.get('status') not in (

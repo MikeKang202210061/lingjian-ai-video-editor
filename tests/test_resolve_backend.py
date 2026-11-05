@@ -159,6 +159,14 @@ class ResolveBackendTests(unittest.TestCase):
                 validate_request(request)
         self.old_output_unchanged()
 
+    def test_native_crash_reports_exit_code_and_stage_without_retry(self):
+        runner = lambda *args, **kwargs: SimpleNamespace(
+            returncode=-1073741819, stdout='', stderr='LJ_RESOLVE_STAGE sdk_import\n')
+        result = run_bridge(sys.executable, '', {'version': 1, 'operation': 'probe'}, '', runner=runner)
+        self.assertEqual(result['status'], 'uncertain')
+        self.assertIn('0xC0000005', result['message'])
+        self.assertIn('sdk_import', result['message'])
+
     def test_invalid_ranges_and_nonfinite_numbers_are_rejected(self):
         for value in (float('nan'), float('inf'), -1, True):
             request = copy.deepcopy(self.request)

@@ -35,12 +35,14 @@ def connect():
             sys.path.insert(0, str(module_dir))
             break
     try:
+        print('LJ_RESOLVE_STAGE sdk_import', file=sys.stderr, flush=True)
         sdk = importlib.import_module('DaVinciResolveScript')
     except ImportError as exc:
-        raise RuntimeError('未找到达芬奇官方 SDK。请选择兼容的 Python 和 Developer/Scripting 目录。') from exc
+        raise RuntimeError('达芬奇 SDK 或原生脚本库无法加载。请检查 Python、Developer/Scripting 目录及自定义安装的 fusionscript.dll：' + str(exc)) from exc
+    print('LJ_RESOLVE_STAGE sdk_connect', file=sys.stderr, flush=True)
     resolve = sdk.scriptapp('Resolve')
     if resolve is None:
-        raise RuntimeError('无法连接达芬奇。请先启动兼容的 Resolve Studio，并将外部脚本设为 Local。')
+        raise RuntimeError('官方 SDK 已加载，但 Resolve 未返回连接。请确认程序已完全启动，并按安装版 README 检查产品是否支持外部脚本及 Local 设置；当前无法确认产品授权或工程状态。')
     return resolve
 
 

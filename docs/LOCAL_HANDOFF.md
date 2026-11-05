@@ -64,6 +64,29 @@ py -3.12 scripts/local_environment.py setup
 
 ## 当前程序与待办
 
+### Windows 本机接续（2026-11-04）
+
+已在用户电脑建立 Git 工作副本 `F:\应用测试\lingjian-ai-video-editor-local`，原 ZIP 解压目录保留。
+项目 `.venv` 使用项目 `.local/python` 下的 Python 3.12.16；依赖、pip check、Qt、现有 FFmpeg、
+两套 Skill 和资源目录检查已执行。之后从这个新目录运行 `start_windows.cmd`。
+
+Resolve 进程安装在 `E:\达芬奇\Resolve.exe`，文件版本 `20.3.1.6`。
+这只是安装文件证据，**不是 SDK 返回的产品名，也未确认 Studio 授权**。
+自定义脚本库路径可保存到被忽略的 `.local/resolve.json`，诊断和界面共用，不修改全局环境：
+
+```powershell
+.\.venv\Scripts\python.exe scripts/local_environment.py check --resolve --resolve-library "E:\达芬奇\fusionscript.dll"
+```
+
+本机 Python 3.12.16 与 Anaconda 3.13.9 在加载该 DLL 时退出 `0xC0000005`；
+现有 `F:\python\python.exe`（3.14.2）可加载 SDK，但 `scriptapp('Resolve')` 返回空。
+没有操作用户工程或执行真实 Resolve 渲染。后续应先定位 SDK 与解释器兼容性、产品能力及 Local 设置，
+再做 Fusion/关键帧与渲染验收；不要把模块加载或模拟 SDK 测试当作真实连接成功。
+
+设置依据为本机 `C:\ProgramData\Blackmagic Design\DaVinci Resolve\Support\Developer\Scripting\README.txt`。
+Resolve 左上角 DaVinci Resolve → Preferences → System → General；若提供 External scripting using，
+选择 Local。没有该项时不要要求购买或提交授权，先核对安装产品的外部脚本能力。
+
 - 仓库：`MikeKang202210061/lingjian-ai-video-editor`；分支：`codex/scene-aware-video-analysis`。
 - PR：<https://github.com/MikeKang202210061/lingjian-ai-video-editor/pull/1>，保留草稿，不合并主分支。
 - 两套参考型剪辑 Skill 已接到分析/方案/确认/撤销和保存；详见 [EDITING_SKILLS.md](EDITING_SKILLS.md)。

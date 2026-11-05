@@ -9,7 +9,7 @@ from PySide6.QtCore import QEvent, QObject, QSignalBlocker, Qt
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QAbstractSpinBox, QApplication, QComboBox, QFormLayout, QFrame, QHBoxLayout, QLabel,
-    QLineEdit, QPlainTextEdit, QPushButton, QScrollArea, QSizePolicy, QStackedWidget,
+    QGroupBox, QLineEdit, QPlainTextEdit, QPushButton, QScrollArea, QSizePolicy, QStackedWidget,
     QTabWidget, QTextEdit, QVBoxLayout, QWidget,
 )
 
@@ -124,6 +124,12 @@ def install_workspace(window):
     window.timeline.selected.connect(window.monitor_workspace.show_program)
 
     inspector = window.inspector
+    # The Windows Chinese font makes the provider title wider than the compact
+    # inspector; QGroupBox reserves its title width even when fields can shrink.
+    for group in inspector.findChildren(QGroupBox):
+        if group.title() == 'OpenAI / Responses 兼容接口':
+            group.setToolTip(group.title())
+            group.setTitle('AI 接口')
     window.cloud_btn.setToolTip(window.cloud_btn.text())
     window.cloud_btn.setText('生成 AI 剪辑方案')
     window.deep_btn.setToolTip(window.deep_btn.text())
