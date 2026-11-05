@@ -1,5 +1,9 @@
 # LingJian AI Video Editor
 
+Windows 本地开发迁移见 [LOCAL_HANDOFF.md](docs/LOCAL_HANDOFF.md)。完整拉取后运行 `setup_windows.cmd`，
+用 `check_windows.cmd` 检查本机依赖及 Resolve 连接，再用 `start_windows.cmd` 启动。
+要让开发会话操作本机，需要在桌面端选择 **This computer** 并打开项目；这些脚本不会自动转换云端会话。
+
 此前桌面版源码交付、Windows 电脑试用步骤、检查证据及未实测限制见
 [最终交付记录](docs/FINAL_DELIVERY.md)。当前交付不包含重新打包的 Windows 安装程序。
 

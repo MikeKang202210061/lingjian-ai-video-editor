@@ -23,3 +23,6 @@ discover/
 .env
 .env.*
 
+# Per-computer development environment and diagnostic paths
+.venv/
+.local/

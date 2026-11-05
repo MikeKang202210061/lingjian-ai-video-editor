@@ -328,6 +328,25 @@
   真实 SDK/CDL 首节点、镜头返回顺序、GPU、帧精度、Windows 设备和高级 Fusion 未实测。
   本地和 Resolve 风格呈现不同，字幕/关键帧/声音设计等尚未迁移；内置资源缺失时不能声称已生成配乐。
 
+## 用户追加：迁移到 Windows 本机开发
+
+基线为远端 `9937f64f4fa17801ce74a72d0ad276b4d9509ec6`，再次读取分支、PR、Skill 说明和本记录。
+用户确认 Windows，并将产品名更正为 DaVinci Resolve；Studio 和外部脚本权限不再视为已确认。
+当前会话仍是云端 Linux，没有用户本机文件/进程连接，所以先准备迁移入口，不宣称已搬到本机。
+
+- 核对 OpenAI 官方 [运行位置](https://learn.chatgpt.com/docs/environments/modes)和
+  [Windows 指南](https://learn.chatgpt.com/docs/windows/windows-app)：本地开发需要在桌面端选择 This computer，
+  云端不会自动取得本机文件与进程。没有通过第三方插件发现可直接替代此切换的连接能力。
+- 新增项目级环境准备、启动、诊断入口及 `scripts/local_environment.py`；建立独立 `.venv`，
+  先验证解释器归属再执行项目内 pip，检查依赖/Qt 原生启动、FFmpeg、Skill 与资源；明确请求时才只读探测 Resolve。
+- 不安装/购买/授权 Resolve，不调用模型，不改系统权限/策略，不开启远程服务，不扫描密钥；
+  现有非环境目录、外部链接和不完整环境会停止处理，不删除或覆盖。`.venv` 和本地诊断被 Git 忽略。
+- [LOCAL_HANDOFF.md](LOCAL_HANDOFF.md)提供分支获取、桌面本地运行步骤、剩余任务及可复制的接续指令。
+- 新增 8 项环境保护/失败/只读探测测试通过，并加入已通过的便携回归；修改 Python 通过编译。
+  当前 Linux 诊断正确报告缺少原生依赖/资源和未运行本机 SDK，不能写作 Windows 就绪或真实达芬奇验证通过。
+- 尚需用户在桌面端选择本地项目并启动本地会话，之后才能实际执行安装、SDK 探测及真实素材渲染。
+  这轮不新增 Fusion 或其他剪辑功能；保留全部已交付代码与当前草稿 PR。
+
 ## 后续记录规则
 
 每轮追加研究来源、取舍、实际修改、运行过的验证及限制。每轮先推送通过检查的增量，
