@@ -12,6 +12,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 TESTS = Path(__file__).resolve().parent
 PORTABLE_TESTS = [
+    "test_local_environment.py",
+    "test_resolve_runtime.py",
+    "test_editing_skills.py",
+    "test_resolve_backend.py",
+    "test_render_jobs.py",
+    "test_project_session.py",
+    "test_project_files.py",
+    "test_visual_sampling.py",
     "test_edit_protocol.py",
     "test_auto_order.py",
     "test_continuity.py",
@@ -42,3 +50,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

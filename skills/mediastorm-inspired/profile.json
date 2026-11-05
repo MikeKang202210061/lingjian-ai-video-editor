@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "accent_spacing": 16,
+  "caption_effect": "minimal",
+  "accent_color": "#FFFFFF",
+  "motion": "slow_push",
+  "accent_events": ["reveal", "resolution"],
+  "sound": "",
+  "music": "documentary_air",
+  "music_volume": 0.1,
+  "zoom": 1.025,
+  "saturation": 0.97
+}

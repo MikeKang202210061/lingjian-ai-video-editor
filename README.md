@@ -1,5 +1,20 @@
 # LingJian AI Video Editor
 
+Windows 本地开发迁移见 [LOCAL_HANDOFF.md](docs/LOCAL_HANDOFF.md)。完整拉取后运行 `setup_windows.cmd`，
+用 `check_windows.cmd` 检查本机依赖及 Resolve 连接，再用 `start_windows.cmd` 启动。
+要让开发会话操作本机，需要在桌面端选择 **This computer** 并打开项目；这些脚本不会自动转换云端会话。
+
+此前桌面版源码交付、Windows 电脑试用步骤、检查证据及未实测限制见
+[最终交付记录](docs/FINAL_DELIVERY.md)。当前交付不包含重新打包的 Windows 安装程序。
+
+后续新增的[达芬奇实验后端](docs/RESOLVE_BACKEND.md)支持在灵剪内检测本机 SDK、发送基础剪辑与渲染任务，
+并预览已校验输出。目前仅通过模拟 SDK 和离屏检查，尚未在真实达芬奇验证，未迁移复杂特效。
+
+新增两套[可执行剪辑 Skill](docs/EDITING_SKILLS.md)：**科技实验讲解（参考何同学）**与
+**影像探索纪实（参考影视飓风）**。在“AI 导演 → 剪辑 Skill”选择，规则进入素材分析和方案生成，
+应用后可撤销并随工程保存。本地使用已有运镜/字幕/声音能力；达芬奇新增受限静态构图和轻量饱和度实验映射，
+不等同完整特效迁移或作者风格复刻，真实 SDK 和云端质量尚未验收。
+
 LingJian is a Windows desktop nonlinear video editor that combines a traditional, editable timeline with optional AI-assisted footage analysis and narrative planning. Local media processing stays on the user's machine; cloud AI is only called after the user provides an API key and starts an analysis.
 
 ## Highlights
@@ -96,6 +111,143 @@ pip install -r requirements.txt
 python app.py
 ```
 
+To try the changes in **draft PR #1**, use the
+[working-branch ZIP](https://github.com/MikeKang202210061/lingjian-ai-video-editor/archive/refs/heads/codex/scene-aware-video-analysis.zip),
+or run `git switch codex/scene-aware-video-analysis` after cloning, before starting
+the app. Existing Windows installers do not yet include these source changes;
+the branch has not completed Windows device or installer acceptance checks.
+
+
+## Desktop workspace improvements
+
+![Compact desktop workspace, captured with Qt offscreen](docs/images/workspace-compact.png)
+
+The desktop editor now offers a compact, tabbed monitor workspace and an optional
+dual-monitor review mode. The tool selector exposes every inspector page by name;
+parameter panels scroll on small screens, and editing shortcuts respect text-input
+focus. The File menu includes Import (`Ctrl+I`), Open (`Ctrl+O`), and Save As
+(`Ctrl+Shift+S`). Project writes use a temporary file and replacement so a failed
+save does not truncate the previous project. Layout/styles and file persistence
+live in separate modules, reusing the existing editing and preview controllers.
+
+See [the research and iteration record](docs/IMPROVEMENT_REVIEW.md) for design
+sources, feature tradeoffs, verification, and the next priorities.
+
+With PySide6 installed, run the desktop interaction checks:
+
+```powershell
+python -m unittest tests.test_desktop_workspace -v
+```
+
+The tests select Qt's offscreen platform by default. Linux shell users can also
+set `QT_QPA_PLATFORM=offscreen` explicitly. They do not replace Windows manual QA.
+
+## Import queue and media-library feedback
+
+Selecting more media while a read is running queues the next batch instead of
+replacing its worker. Equivalent video paths and videos already loaded, queued or
+being read are skipped, with a status message. Audio keeps its existing role as
+background music and is not counted as a video-library item.
+
+The library shows visible/total videos, remaining reads, proxy jobs and issue
+counts. New items and proxy-status changes obey the current search. File errors
+do not open one blocking dialog per file: **查看导入问题** shows copyable details,
+retaining the latest 50 issues for the current project. A failed video read can
+be retried by importing that file again after its batch finishes.
+
+Read and proxy workers are retained until Qt reports completion. A pending queue
+also prevents closing or changing projects. Proxy creation reuses temporary-file
+publication; failures preserve the source and do not switch the monitor to a
+failed proxy. Existing cached proxies still use the previous cache-discovery
+rules. This does not add general import cancellation or media-probe timeouts.
+
+```powershell
+python -m unittest tests.test_desktop_import tests.test_desktop_media_workers -v
+```
+
+## Unsaved changes and recovery
+
+The title bar and status bar distinguish new, modified and saved projects. Opening
+another project or closing the editor offers Save / Discard / Cancel. Cancelling
+Save As or a failed save keeps the current document open. Undoing back to saved
+content clears the modified flag.
+
+Autosave writes a separate recovery copy for each window every 30 seconds when
+project content changes; it does not overwrite the original or mark it saved.
+On startup, a banner and **File → 恢复自动保存…** expose older recovery copies,
+including the previous version's `autosave.ljproject`. Restore opens an unsaved
+document and asks you to Save As. Successful manual saving removes that restored
+copy and the current window's backup, preserving unrelated copies.
+
+Recovery covers serialized project content, the project title and music volume.
+Unapplied inspector parameters, unused media-library entries, playback position
+and running tasks are not restored. Background work must finish before closing
+or changing projects; general task cancellation is not yet implemented.
+
+```powershell
+python -m unittest tests.test_desktop_session tests.test_desktop_workspace -v
+```
+
+## Cancellable, protected exports
+
+Each window runs one final export at a time. Both export buttons share its busy
+state, the inspector switches to the export controls, and **取消导出** requests
+cancellation. The editor retains the worker until it finishes; cancellation or
+failure restores the controls so the export can be retried.
+
+Rendering uses a snapshot of the timeline at startup. FFmpeg writes a unique
+temporary MP4 beside the destination; only a successful render and compatibility
+check replace the destination. Failure or cancellation preserves an existing
+output. Selecting an input file, including a link to it, as the destination is
+rejected. Effect previews share the process handling but use a media-readability
+check so valid short previews are not rejected by the final-export size check.
+
+Cancellation stops the encoding process cooperatively; if validation is already
+running, it waits for that check to return before discarding the temporary file.
+This is export cancellation, not a general manager for import or AI tasks.
+
+```powershell
+python -m unittest tests.test_desktop_export tests.test_desktop_session tests.test_desktop_workspace -v
+python -m unittest tests.test_render_jobs_ffmpeg -v
+```
+
+## Scene-aware cloud analysis
+
+Offline, cloud and quick plan generation share a busy check, preventing another
+analysis from replacing a running worker or competing for the same result UI.
+Completed offline/cloud results retain the target duration and prompt captured
+at startup, even if those controls were edited during processing. Plans still
+require review before being applied; this is not general task cancellation.
+
+The desktop AI Director now scans a small 64×36 proxy locally at four samples per
+second. It combines full-video coverage with scene-change and accumulated-motion
+samples, keeping at most **24 frames**, grouped into at most **three contact sheets**
+of eight frames each. The overview sheets are sent together in one visual request.
+Each tile is labelled with its actual decoded presentation time relative to the
+source; a cached `manifest.json` records the same mapping. Replacing a source file
+invalidates its derived-media cache. If the change scan is unavailable, analysis
+falls back to evenly distributed timeline coverage and emits a warning.
+
+In **AI 接口**, optionally enable **候选二次精看**. It is off by default. When enabled,
+one additional visual request examines at most eight frames around the two
+highest-scoring candidates. A boundary can move by at most one second, must remain
+inside the source and the supplied window, and must retain at least half a second.
+If refinement fails, the initial plan remains available and the AI status reports
+the fallback. The plan still requires review before it reaches the timeline.
+
+These are request-count limits, not a fixed price: image resolution, model pricing,
+transcription, generated text, and the separate whole-project planning request all
+affect cost. Grouped sheets can cost more than the former single 6×6 overview.
+Four-fps scanning and sparse visual review can still miss very short actions;
+timestamps identify sampled frames, not guaranteed frame-exact action boundaries.
+The unaligned audio transcript provides context, not proof of a particular clip's
+dialogue. No new dependencies are required beyond the existing Pillow dependency.
+
+Run the real-media sampling checks with FFmpeg installed:
+
+```powershell
+python -m unittest tests.test_visual_sampling_ffmpeg -v
+```
 
 ## Optional person-segmentation model
 
@@ -111,6 +263,13 @@ The model is intentionally excluded from Git because of its size and separate di
 
 ```powershell
 python tests/run_tests.py
+```
+
+For the desktop checks, including a generated-media import → save → reopen →
+export workflow:
+
+```powershell
+python -m unittest tests.test_desktop_analysis tests.test_desktop_workflow_ffmpeg tests.test_desktop_import tests.test_desktop_media_workers tests.test_desktop_session tests.test_desktop_export tests.test_desktop_workspace -v
 ```
 
 Additional generated-media tests in `tests/` require FFmpeg. The portable runner covers edit-plan validation, continuity, long-form ordering, personalization, capture order, and the mocked AI workflow.
@@ -132,3 +291,4 @@ Additional generated-media tests in `tests/` require FFmpeg. The portable runner
 ## Scope
 
 LingJian focuses on editable AI-assisted assembly, short/long-form narrative planning, subtitles, transitions, multitrack composition, and dependable local export. It is not intended to replace the advanced color, compositing, audio, collaboration, or multicamera systems in a full professional post-production suite.
+

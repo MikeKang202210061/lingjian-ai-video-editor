@@ -1,8 +1,9 @@
 from __future__ import annotations
-import base64,ctypes,json,mimetypes,os,re,subprocess,urllib.request,urllib.error,uuid
+import base64,ctypes,json,math,mimetypes,os,re,subprocess,tempfile,urllib.request,urllib.error,uuid,warnings
 from ctypes import wintypes
 from dataclasses import dataclass
 from pathlib import Path
+from visual_sampling import build_contact_sheets, media_key
 
 class DATA_BLOB(ctypes.Structure):_fields_=[('cbData',wintypes.DWORD),('pbData',ctypes.POINTER(ctypes.c_byte))]
 def _blob(data:bytes):
@@ -26,6 +27,7 @@ def unprotect_secret(value:str)->str:
 @dataclass
 class APIConfig:
     base_url:str='https://api.openai.com';api_key:str='';model:str='gpt-5-mini';transcription_model:str='gpt-4o-mini-transcribe';timeout:int=180
+    refine_highlights:bool=False
     def endpoint(self,path):return self.base_url.rstrip('/')+'/v1/'+path.lstrip('/')
 
 def _request(url,data,headers,timeout):
@@ -52,35 +54,90 @@ def _output_text(result):
 
 STAGE_ORDER={'intro':0,'ingredients':1,'prep':2,'cook':3,'plate':4,'taste':5,'outro':6,'other':7}
 
-def request_highlights(cfg:APIConfig,transcript:str,contact_sheet:str,duration:float,user_prompt:str)->list[dict]:
-    image='data:image/jpeg;base64,'+base64.b64encode(Path(contact_sheet).read_bytes()).decode();item_props={'start':{'type':'number'},'end':{'type':'number'},'score':{'type':'number'},'reason':{'type':'string'},'caption':{'type':'string'},'role':{'type':'string','enum':['hook','setup','development','climax','outro','broll']},'stage':{'type':'string','enum':list(STAGE_ORDER)},'chapter':{'type':'string'},'shot_type':{'type':'string'},'motion':{'type':'number'},'stability':{'type':'number'},'audio_value':{'type':'number'},'visual_signature':{'type':'string'}};schema={'type':'object','properties':{'summary':{'type':'string'},'segments':{'type':'array','items':{'type':'object','properties':item_props,'required':list(item_props),'additionalProperties':False}}},'required':['summary','segments'],'additionalProperties':False}
-    frame_count=36;interval=max(.5,duration/frame_count);frame_map=', '.join(f'{i+1}≈{min(duration,(i+.5)*interval):.1f}s' for i in range(frame_count))
-    prompt=f'''你是专业纪录片与短视频剪辑师。接触表按从左到右、从上到下排列，帧时间约为：{frame_map}。分析画面与语音，从 {duration:.2f} 秒素材中找出可独立剪辑的候选镜头。
+def _visual_content(sheets:list[dict])->tuple[str,list[dict]]:
+    maps=[];images=[]
+    for index,sheet in enumerate(sheets,1):
+        maps.append(f"图{index}："+', '.join(f"格{i+1}={frame['time']:.6f}s" for i,frame in enumerate(sheet['frames'])))
+        image='data:image/jpeg;base64,'+base64.b64encode(Path(sheet['path']).read_bytes()).decode()
+        images.append({'type':'input_image','image_url':image})
+    return '\n'.join(maps),images
+
+def request_highlights(cfg:APIConfig,transcript:str,contact_sheet:str|list[dict],duration:float,user_prompt:str)->list[dict]:
+    item_props={'start':{'type':'number'},'end':{'type':'number'},'score':{'type':'number'},'reason':{'type':'string'},'caption':{'type':'string'},'role':{'type':'string','enum':['hook','setup','development','climax','outro','broll']},'stage':{'type':'string','enum':list(STAGE_ORDER)},'chapter':{'type':'string'},'shot_type':{'type':'string'},'motion':{'type':'number'},'stability':{'type':'number'},'audio_value':{'type':'number'},'visual_signature':{'type':'string'}};schema={'type':'object','properties':{'summary':{'type':'string'},'segments':{'type':'array','items':{'type':'object','properties':item_props,'required':list(item_props),'additionalProperties':False}}},'required':['summary','segments'],'additionalProperties':False}
+    if isinstance(contact_sheet,str):
+        # Compatibility with callers supplying a legacy 6x6 sheet.
+        interval=max(.5,duration/36)
+        frame_map='旧版均匀采样，时间为估计值：'+', '.join(f'{i+1}≈{min(duration,(i+.5)*interval):.1f}s' for i in range(36))
+        images=[{'type':'input_image','image_url':'data:image/jpeg;base64,'+base64.b64encode(Path(contact_sheet).read_bytes()).decode()}]
+    else:
+        frame_map,images=_visual_content(contact_sheet)
+    prompt=f'''你是专业纪录片与短视频剪辑师。每张接触表按从左到右、从上到下排列，各格原素材时间为：\n{frame_map}\n抽帧不是连续视频；未展示的间隔没有视觉证据，不能声称看到了其中的瞬间或精确动作边界。语音转写没有逐句时间码，不能据此编造某镜头的对白；无法确定归属时字幕留空。分析画面与语音，从 {duration:.2f} 秒素材中找出可独立剪辑的候选镜头。
 每个候选必须尽量落在动作或语句边界，保留动作前后约0.15秒余量；通常1.2到5.5秒，除非完整语义确实需要更长。拒绝严重抖动、失焦、重复构图、遮挡、无意义停顿、开关机动作。分别评估运动强度motion、稳定性stability、声音叙事价值audio_value（0-100），并给出简短visual_signature用于跨素材去重。role只能是hook/setup/development/climax/outro/broll。caption必须优先使用该时段真实说话内容的忠实短句（中文通常不超过18字），不得编造对白；没有语音时留空，除非用户明确要求旁白或标题。
 stage必须判断事件阶段：intro开场、ingredients食材/对象展示、prep切洗准备、cook烹饪/执行、plate装盘/结果展示、taste试吃/验收、outro收尾、other其他。chapter写明当前事件章节。对于教程、做饭、改造、开箱等步骤型素材，成品画面可作为开头钩子，但其余步骤的stage必须按真实事件判断，不能因画面更精彩而改变阶段。
 候选镜头必须至少贡献一种价值：新事实、新动作状态、新地点、新情绪或因果转折。只有重复动作、口头填充词、离场等待、镜头尚未摆稳的片段即使清晰也要降分。优先保留目标陈述、困难/意外、关键变化、人物反应、结果验证；动作过程应选“开始—关键变化—结果”，不要把同一动作切成多段反复返回。
 用户要求：{user_prompt}\n语音转写：{transcript or '无可用语音'}\n画面超过60秒时必须覆盖开头、中段、后段和收尾的全部事件章节，不能只挑前半段；为120秒成片准备足够数量且时间分布均匀的候选。只返回可进入非线性时间线的候选，不要在单素材内决定最终顺序。'''
-    body={'model':cfg.model,'input':[{'role':'user','content':[{'type':'input_text','text':prompt},{'type':'input_image','image_url':image}]}],'text':{'format':{'type':'json_schema','name':'video_highlights','strict':True,'schema':schema}}}
+    body={'model':cfg.model,'input':[{'role':'user','content':[{'type':'input_text','text':prompt},*images]}],'text':{'format':{'type':'json_schema','name':'video_highlights','strict':True,'schema':schema}}}
     result=_request(cfg.endpoint('responses'),json.dumps(body).encode(),{'Authorization':'Bearer '+cfg.api_key,'Content-Type':'application/json'},cfg.timeout);text=_output_text(result).strip();text=re.sub(r'^```(?:json)?|```$','',text).strip();data=json.loads(text);valid=[]
     for s in data.get('segments',[]):
+        if not all(math.isfinite(float(s[k])) for k in ('start','end','score')):continue
         a=max(0,float(s['start']));b=min(duration,float(s['end']))
         if b-a>=.5:valid.append({'start':round(a,3),'end':round(b,3),'score':max(0,min(100,float(s['score']))),'reason':str(s['reason']),'caption':str(s['caption']),'role':str(s.get('role','broll')),'stage':str(s.get('stage','other')),'chapter':str(s.get('chapter','')),'shot_type':str(s.get('shot_type','')),'motion':max(0,min(100,float(s.get('motion',50)))),'stability':max(0,min(100,float(s.get('stability',50)))),'audio_value':max(0,min(100,float(s.get('audio_value',0)))),'visual_signature':str(s.get('visual_signature',''))})
     return sorted(valid,key=lambda x:x['score'],reverse=True)
 
 def extract_assets(ffmpeg:str,source:str,folder:str,duration:float):
-    folder=Path(folder);folder.mkdir(parents=True,exist_ok=True);key='v3-long36-'+str(abs(hash(str(Path(source).resolve()))));audio=folder/(key+'.m4a');sheet=folder/(key+'.jpg')
+    folder=Path(folder);folder.mkdir(parents=True,exist_ok=True);audio=folder/(media_key(source,duration)+'.m4a')
     flags=0x08000000 if os.name=='nt' else 0
-    if not audio.exists():subprocess.run([ffmpeg,'-y','-i',source,'-vn','-ac','1','-ar','16000','-c:a','aac','-b:a','64k',str(audio)],capture_output=True,creationflags=flags)
-    interval=max(.5,duration/36)
-    if not sheet.exists():
-        p=subprocess.run([ffmpeg,'-y','-i',source,'-vf',f'fps=1/{interval:.4f},scale=180:-2,tile=6x6','-frames:v','1','-q:v','3',str(sheet)],capture_output=True,creationflags=flags)
-        if p.returncode or not sheet.exists():raise RuntimeError('无法生成 AI 画面接触表')
-    return str(audio),str(sheet)
+    if not audio.exists() or audio.stat().st_size<1000:
+        with tempfile.TemporaryDirectory(prefix='audio-',dir=folder) as scratch:
+            temporary=Path(scratch)/'audio.m4a'
+            p=subprocess.run([ffmpeg,'-nostdin','-y','-i',source,'-map','0:a:0?','-vn','-ac','1','-ar','16000','-c:a','aac','-b:a','64k',str(temporary)],capture_output=True,creationflags=flags,timeout=180)
+            if p.returncode:
+                error=p.stderr.decode('utf-8','replace')
+                if 'does not contain any stream' not in error:raise RuntimeError('无法提取 AI 音频：'+error[-800:])
+            elif temporary.exists():os.replace(temporary,audio)
+    return str(audio),build_contact_sheets(ffmpeg,source,str(folder),duration)
 
-def analyze_video(ffmpeg:str,cfg:APIConfig,source:str,duration:float,folder:str,prompt:str):
+def refine_highlight_boundaries(ffmpeg:str,cfg:APIConfig,source:str,duration:float,folder:str,segments:list[dict])->list[dict]:
+    """One optional request: eight frames around at most two top candidates."""
+    windows=[];samples=[]
+    for index,segment in enumerate(segments[:2]):
+        a=max(0,segment['start']-1);b=min(duration-.001,segment['end']+1)
+        if b<=a:continue
+        windows.append({'candidate_index':index,'start':segment['start'],'end':segment['end'],'window_start':a,'window_end':b})
+        samples.extend({'time':a+(b-a)*i/3,'kind':'refinement','score':0.0} for i in range(4))
+    if not windows:return segments
+    sheets=build_contact_sheets(ffmpeg,source,folder,duration,samples=sorted(samples,key=lambda s:s['time']))
+    frame_map,images=_visual_content(sheets)
+    prompt=('仅复核已有候选的剪切边界，不添加候选、不修改叙事角色或字幕。所有时间都是原素材秒数。'
+            '仅在给出的窗口内调整，任一边界最多移动1秒；抽帧不足以证明精确动作边界时保留原值。'
+            '候选与允许窗口：'+json.dumps(windows,ensure_ascii=False)+'\n画面：\n'+frame_map)
+    props={'candidate_index':{'type':'integer'},'start':{'type':'number'},'end':{'type':'number'}}
+    schema={'type':'object','properties':{'refinements':{'type':'array','items':{'type':'object','properties':props,'required':list(props),'additionalProperties':False}}},'required':['refinements'],'additionalProperties':False}
+    body={'model':cfg.model,'input':[{'role':'user','content':[{'type':'input_text','text':prompt},*images]}],'text':{'format':{'type':'json_schema','name':'video_boundaries','strict':True,'schema':schema}}}
+    response=_request(cfg.endpoint('responses'),json.dumps(body).encode(),{'Authorization':'Bearer '+cfg.api_key,'Content-Type':'application/json'},cfg.timeout)
+    data=json.loads(_output_text(response));out=[dict(segment) for segment in segments];seen=set()
+    allowed={window['candidate_index']:window for window in windows}
+    for change in data.get('refinements',[]):
+        index=change.get('candidate_index')
+        if type(index) is not int or index not in allowed or index in seen:continue
+        a=float(change['start']);b=float(change['end']);window=allowed[index]
+        if (not math.isfinite(a) or not math.isfinite(b) or b-a<.5
+                or not window['window_start']<=a<b<=window['window_end']
+                or abs(a-window['start'])>1 or abs(b-window['end'])>1):continue
+        out[index].update(start=round(a,3),end=round(b,3));seen.add(index)
+    return out
+
+def analyze_video(ffmpeg:str,cfg:APIConfig,source:str,duration:float,folder:str,prompt:str,*,report:dict|None=None):
     if not cfg.api_key:raise RuntimeError('请先在“AI 接口”中填写 API Key')
-    audio,sheet=extract_assets(ffmpeg,source,folder,duration);transcript=transcribe_audio(cfg,audio) if Path(audio).exists() and Path(audio).stat().st_size>1000 else ''
-    return request_highlights(cfg,transcript,sheet,duration,prompt)
+    audio,sheets=extract_assets(ffmpeg,source,folder,duration);transcript=transcribe_audio(cfg,audio) if Path(audio).is_file() and Path(audio).stat().st_size>1000 else ''
+    segments=request_highlights(cfg,transcript,sheets,duration,prompt)
+    if cfg.refine_highlights and segments:
+        try:segments=refine_highlight_boundaries(ffmpeg,cfg,source,duration,folder,segments)
+        except Exception as exc:
+            message='候选二次精看未完成，已保留首轮方案：'+str(exc)
+            if report is not None:report.setdefault('warnings',[]).append(message)
+            else:warnings.warn(message,RuntimeWarning)
+    return segments
 
 def _overlap(a,b):
     if a['source_index']!=b['source_index']:return 0.0
@@ -265,3 +322,4 @@ def plan_sequence(cfg:APIConfig,analyses:list[dict],target:float,user_prompt:str
         return enforce_continuity(out,analyses,user_prompt,target) if out else local_sequence(analyses,target,user_prompt)
     except Exception:
         return local_sequence(analyses,target,user_prompt)
+

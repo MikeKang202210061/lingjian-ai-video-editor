@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "accent_spacing": 8,
+  "caption_effect": "highlight",
+  "accent_color": "#7DD3FC",
+  "motion": "punch_in",
+  "accent_events": ["detail", "reveal"],
+  "sound": "magic_ding",
+  "music": "clean_focus",
+  "music_volume": 0.14,
+  "zoom": 1.06,
+  "saturation": 1.03
+}

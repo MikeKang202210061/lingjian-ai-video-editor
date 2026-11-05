@@ -463,6 +463,7 @@ def plan_to_clips(plan: dict, clip_class) -> list:
         clip.title_effect = item.get("title_effect", ""); clip.title_text = item.get("title_text", "")
         clip.title_fill_segments = copy.deepcopy(item.get("title_fill_segments") or []); clip.title_color = item.get("title_color", "#FFFFFF")
         clip.caption_effect = item.get("caption_effect", "clean"); clip.motion_effect = item.get("motion_effect", "none")
+        clip.resolve_treatment = copy.deepcopy(item.get("resolve_treatment") or {})
         if item.get("caption_font"): clip.caption_font = item["caption_font"]
         if item.get("caption_color"): clip.caption_color = item["caption_color"]
         clips.append(clip)
@@ -519,6 +520,9 @@ def plan_preview_text(plan: dict) -> str:
         for event in global_direction.get("events") or []:
             if event.get("accent"):
                 lines.append(f"  {float(event.get('timeline_start',0)):06.2f}s · {event.get('event')} · {event.get('motion')} · 字幕 {event.get('caption_effect')}")
+    from editing_skills import skill_summary
+    if plan.get('editing_skill'):
+        lines.append(skill_summary(plan))
     lines.append("\n镜头方案：")
     for i, item in enumerate(plan.get("decisions") or []):
         lines.append(
